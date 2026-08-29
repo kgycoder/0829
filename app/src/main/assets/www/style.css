@@ -1,0 +1,5326 @@
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
+/* Apple Music 스타일 가사 전용 폰트 — 영/한/일/중 대응, 굵고 직관적인 웨이트 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700;900&family=Noto+Sans+SC:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap');
+
+/* ════════════════════════════════
+   TOKENS
+════════════════════════════════ */
+:root {
+    --bg: #060610;
+    --glass: rgba(255,255,255,0.045);
+    --glass-md: rgba(255,255,255,0.07);
+    --glass-hi: rgba(255,255,255,0.10);
+    --glass-bd: rgba(255,255,255,0.09);
+    --glass-bd-hi: rgba(255,255,255,0.18);
+    --t1: rgba(255,255,255,0.96);
+    --t2: rgba(255,255,255,0.62);
+    --t3: rgba(255,255,255,0.36);
+    --t4: rgba(255,255,255,0.18);
+    --t5: rgba(255,255,255,0.08);
+    --acc: #fa2d5a;
+    --acc-dim: rgba(250,45,90,0.20);
+    --acc-glow: rgba(250,45,90,0.50);
+    --acc2: #a78bfa;
+    --sw: 220px;
+    --bh: 88px;
+    --ease: cubic-bezier(.4,0,.2,1);
+    --spring: cubic-bezier(.34,1.56,.64,1);
+    --blur: blur(36px) saturate(1.6);
+    --blur-heavy: blur(64px) saturate(1.8);
+
+    /* ── Apple Music 가사 전용: 폰트 & Focus-driven Inertial Spring Motion ── */
+    --lyric-font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Rounded',
+                  'Pretendard', 'Apple SD Gothic Neo',
+                  'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans TC',
+                  'Helvetica Neue', sans-serif;
+    /* 초기 진입 스프링 — 강한 오버슈트 후 정착 (관성이 느껴지는 튐) */
+    --lyric-spring-in:  cubic-bezier(0.16, 1.55, 0.34, 1);
+    /* 포커스 이동 스프링 — 관성 있는 감속 */
+    --lyric-spring-move: cubic-bezier(0.22, 1.14, 0.3, 1.02);
+    /* 페이드(투명도/블러)는 스프링과 분리해 더 짧고 선형적으로 */
+    --lyric-fade: cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+/* ════════════════════════════════
+   RESET
+════════════════════════════════ */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--t1);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+input {
+    font-family: inherit;
+}
+
+img {
+    display: block;
+}
+
+/* ════════════════════════════════
+   CUSTOM SCROLLBAR
+════════════════════════════════ */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.10);
+    border-radius: 4px;
+    transition: background .2s;
+}
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.22);
+    }
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.10) transparent;
+}
+
+/* ════════════════════════════════
+   DYNAMIC BACKGROUND
+════════════════════════════════ */
+#bgc {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.bg-over {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    backdrop-filter: blur(120px) saturate(1.2);
+    -webkit-backdrop-filter: blur(120px) saturate(1.2);
+}
+
+.bg-grain {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: .032;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 300px;
+}
+
+/* ════════════════════════════════
+   SHELL LAYOUT
+════════════════════════════════ */
+#shell {
+    position: relative;
+    z-index: 3;
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: var(--sw) 1fr;
+    grid-template-rows: 1fr var(--bh);
+    grid-template-areas: "side main" "bar bar";
+    overflow: hidden;
+    transition: grid-template-rows .35s var(--ease);
+}
+
+/* ════════════════════════════════
+   TITLE BAR
+════════════════════════════════ */
+#tbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    cursor: move;
+}
+
+.wbtns {
+    display: flex;
+    gap: 7px;
+}
+
+.wb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: filter .15s, transform .12s;
+    position: relative;
+}
+
+    .wb:hover {
+        filter: brightness(1.15);
+        transform: scale(1.1);
+    }
+
+    .wb::after {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+    }
+
+.wbc {
+    background: #ff5f57;
+}
+
+.wbm {
+    background: #febc2e;
+}
+
+.wbx {
+    background: #28c840;
+}
+
+/* ════════════════════════════════
+   SIDEBAR
+════════════════════════════════ */
+#side {
+    grid-area: side;
+    background: rgba(5,5,14,0.78);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border-right: 1px solid var(--glass-bd);
+    display: flex;
+    flex-direction: column;
+    padding-top: 52px;
+    overflow: hidden;
+}
+
+/* LOGO */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 18px 20px;
+}
+
+.logo-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-word {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: rgba(255,255,255,0.80);
+    text-transform: uppercase;
+}
+
+/* NAV */
+.nav-sec {
+    padding: 0 10px 6px;
+}
+
+.nav-lbl {
+    font-size: 8.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--t4);
+    padding: 0 8px;
+    margin-bottom: 4px;
+}
+
+.nb {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 10px;
+    color: var(--t3);
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: all .18s var(--ease);
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+    .nb::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 10px;
+        background: var(--glass);
+        opacity: 0;
+        transition: opacity .18s;
+    }
+
+    .nb:hover {
+        color: var(--t2);
+    }
+
+        .nb:hover::before {
+            opacity: 1;
+        }
+
+    .nb.on {
+        color: var(--t1);
+        background: linear-gradient(135deg, rgba(250,45,90,0.12), rgba(167,139,250,0.08));
+        border: 1px solid rgba(250,45,90,0.18);
+    }
+
+        .nb.on .ni path, .nb.on .ni circle,
+        .nb.on .ni line, .nb.on .ni polyline {
+            stroke: var(--acc);
+        }
+
+.ni {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+/* FAVORITES LIST */
+.fav-sc-wrap {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px 10px;
+}
+
+.fav-sc {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+    .fav-sc::-webkit-scrollbar {
+        display: none;
+    }
+
+.fi {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .14s;
+}
+
+    .fi:hover {
+        background: var(--glass);
+    }
+
+.fi-art {
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--glass-md);
+    flex-shrink: 0;
+}
+
+.fi-m {
+    flex: 1;
+    min-width: 0;
+}
+
+.fi-t {
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fi-c {
+    font-size: 10px;
+    color: var(--t3);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fi-empty {
+    font-size: 11px;
+    color: var(--t4);
+    padding: 5px 7px;
+}
+
+/* ════════════════════════════════
+   MAIN AREA
+════════════════════════════════ */
+#main {
+    grid-area: main;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 52px;
+}
+
+/* ════════════════════════════════
+   VIEWS
+════════════════════════════════ */
+.view {
+    display: none;
+    animation: vIn .3s var(--ease) both;
+}
+
+    .view.on {
+        display: block;
+    }
+
+@keyframes vIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ════════════════════════════════
+   HOME VIEW
+════════════════════════════════ */
+#v-home {
+    padding: 20px 24px;
+}
+
+.home-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+}
+
+.greet h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -.4px;
+    margin-bottom: 3px;
+}
+
+.greet p {
+    font-size: 12.5px;
+    color: var(--t3);
+}
+
+/* SEARCH */
+.srch-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 420px;
+}
+
+.srch-inp {
+    width: 100%;
+    padding: 11px 14px 11px 40px;
+    background: var(--glass-md);
+    border: 1px solid var(--glass-bd);
+    border-radius: 50px;
+    color: var(--t1);
+    font-size: 13px;
+    outline: none;
+    transition: all .22s var(--ease);
+    backdrop-filter: blur(20px);
+}
+
+    .srch-inp::placeholder {
+        color: var(--t4);
+    }
+
+    .srch-inp:focus {
+        border-color: rgba(250,45,90,0.40);
+        background: rgba(250,45,90,0.06);
+        box-shadow: 0 0 0 3px var(--acc-dim), 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+.srch-ico {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.srch-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 6px 14px;
+    background: linear-gradient(135deg, var(--acc), #c0185e);
+    border-radius: 50px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px var(--acc-dim);
+    transition: all .16s var(--ease);
+}
+
+    .srch-btn:hover {
+        background: linear-gradient(135deg, #ff1246, #e01060);
+        transform: translateY(-50%) scale(1.04);
+        box-shadow: 0 6px 20px var(--acc-glow);
+    }
+
+/* AUTOCOMPLETE */
+.sug-drop {
+    position: absolute;
+    top: calc(100% + 7px);
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: rgba(10,10,22,0.96);
+    backdrop-filter: blur(40px) saturate(1.8);
+    border: 1px solid var(--glass-bd);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 56px rgba(0,0,0,0.70);
+    display: none;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    transition: opacity .18s var(--ease), transform .18s var(--ease);
+}
+
+    .sug-drop.on {
+        display: block;
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+.sug-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background .12s;
+    font-size: 13px;
+    color: var(--t2);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+    .sug-item:last-child {
+        border-bottom: none;
+    }
+
+    .sug-item:hover {
+        background: var(--glass-md);
+        color: var(--t1);
+    }
+
+    .sug-item svg {
+        flex-shrink: 0;
+        opacity: .38;
+    }
+
+/* SECTION HEADER */
+.sh {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+    .sh h2 {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -.25px;
+    }
+
+.sh-more {
+    font-size: 11px;
+    color: var(--acc);
+    cursor: pointer;
+    opacity: .75;
+    transition: opacity .14s;
+}
+
+    .sh-more:hover {
+        opacity: 1;
+    }
+
+/* HORIZONTAL ROW */
+.hrow {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 28px;
+    scrollbar-width: none;
+}
+
+    .hrow::-webkit-scrollbar {
+        display: none;
+    }
+
+/* ════════════════════════════════
+   CARD — redesigned
+════════════════════════════════ */
+.card {
+    flex: 0 0 162px;
+    background: var(--glass);
+    border: 1px solid var(--glass-bd);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .26s var(--ease), box-shadow .26s var(--ease), border-color .26s;
+    animation: cIn .42s var(--ease) both;
+    position: relative;
+    will-change: transform, box-shadow;
+}
+
+    .card:hover {
+        transform: translateY(-7px) scale(1.028);
+        border-color: var(--glass-bd-hi);
+        box-shadow: 0 24px 56px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.09);
+    }
+
+    .card.playing {
+        border-color: rgba(250,45,90,0.55);
+        box-shadow: 0 0 0 1.5px var(--acc), 0 12px 38px var(--acc-glow), 0 0 52px var(--acc-dim);
+    }
+    /* When JS beat engine is active, disable CSS transition so JS drives it at rAF speed */
+    .card.beat-active {
+        transition: none !important;
+    }
+
+@keyframes cIn {
+    from {
+        opacity: 0;
+        transform: scale(0.88) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Thumbnail wrapper */
+.c-thumb {
+    position: relative;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: var(--glass-md);
+}
+
+.c-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .6s ease, filter .3s;
+    display: block;
+}
+
+.card:hover .c-img {
+    transform: scale(1.08);
+    filter: brightness(0.7);
+}
+
+/* Glass shine on top-left */
+.c-shine {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 60%;
+    height: 40%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 0 0 50% 0;
+}
+
+/* Overlay with play button */
+.c-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .2s;
+}
+
+.card:hover .c-overlay {
+    opacity: 1;
+}
+
+.c-play-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #08080d;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.55);
+    transform: scale(0.70);
+    transition: transform .22s var(--spring), background .15s;
+}
+
+.card:hover .c-play-btn {
+    transform: scale(1);
+}
+
+.c-play-btn:hover {
+    background: #fff;
+}
+
+/* Favorite button */
+.c-fav {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.11);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .15s;
+    opacity: 0;
+}
+
+.card:hover .c-fav {
+    opacity: 1;
+}
+
+.c-fav.on {
+    opacity: 1;
+    background: rgba(250,45,90,0.22);
+    border-color: rgba(250,45,90,0.35);
+}
+
+.c-fav:hover {
+    transform: scale(1.14);
+    background: rgba(250,45,90,0.38);
+}
+
+/* Duration chip */
+.c-dur {
+    position: absolute;
+    bottom: 7px;
+    right: 7px;
+    padding: 2px 6px;
+    background: rgba(0,0,0,0.68);
+    backdrop-filter: blur(8px);
+    border-radius: 5px;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: .3px;
+}
+
+/* Now-playing animated bars */
+.c-now-bar {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+}
+
+    .c-now-bar span {
+        width: 3px;
+        background: #fff;
+        border-radius: 2px;
+        animation: cnb .7s ease-in-out infinite;
+    }
+
+        .c-now-bar span:nth-child(1) {
+            height: 55%;
+            animation-delay: 0s;
+        }
+
+        .c-now-bar span:nth-child(2) {
+            height: 100%;
+            animation-delay: .15s;
+        }
+
+        .c-now-bar span:nth-child(3) {
+            height: 70%;
+            animation-delay: .30s;
+        }
+
+@keyframes cnb {
+    0%,100% {
+        transform: scaleY(1)
+    }
+
+    50% {
+        transform: scaleY(.25)
+    }
+}
+
+/* Card info section */
+.c-info {
+    padding: 10px 11px 12px;
+    background: linear-gradient(180deg, var(--glass) 0%, rgba(8,8,20,0.55) 100%);
+}
+
+.c-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 4px;
+    color: var(--t1);
+}
+
+.c-ch {
+    font-size: 10px;
+    color: var(--t3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* SEARCH GRID */
+.cgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+}
+
+/* LIST ROW (QUEUE) */
+.lcard {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .14s;
+    border: 1px solid transparent;
+}
+
+    .lcard:hover {
+        background: var(--glass);
+    }
+
+    .lcard.playing {
+        background: rgba(250,45,90,0.08);
+        border-color: rgba(250,45,90,0.18);
+    }
+
+.lcard-art {
+    width: 42px;
+    height: 42px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: var(--glass-md);
+    flex-shrink: 0;
+}
+
+.lcard-m {
+    flex: 1;
+    min-width: 0;
+}
+
+.lcard-t {
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lcard-c {
+    font-size: 10.5px;
+    color: var(--t3);
+    margin-top: 2px;
+}
+
+.lcard-d {
+    font-size: 10.5px;
+    color: var(--t3);
+    flex-shrink: 0;
+    font-family: 'DM Mono', monospace;
+}
+
+/* STATE */
+.state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 12px;
+    text-align: center;
+}
+
+    .state svg {
+        opacity: .2;
+    }
+
+    .state h3 {
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .state p {
+        font-size: 12.5px;
+        color: var(--t2);
+        line-height: 1.6;
+    }
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--glass-bd);
+    border-top-color: var(--acc);
+    border-radius: 50%;
+    animation: sp .6s linear infinite;
+}
+
+@keyframes sp {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ════════════════════════════════
+   NOW PLAYING OVERLAY — redesigned
+════════════════════════════════ */
+#np {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    display: none;
+    overflow: hidden;
+    flex-direction: column;
+    background: var(--bg);
+}
+
+    #np.on {
+        display: flex;
+        animation: npIn .38s var(--ease) both;
+    }
+
+@keyframes npIn {
+    from {
+        opacity: 0;
+        transform: scale(1.02);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Mesh Gradient canvas background */
+#np-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    image-rendering: auto;
+    /* 살짝만 blur — 픽셀 경계 숨기되 파동 움직임은 살림 */
+    filter: blur(18px) saturate(1.2);
+    transform: scale(1.04);
+    will-change: contents;
+}
+/* Dark gradient overlay — stronger at bottom where panel sits */
+#np::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient( to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.14) 38%, rgba(0,0,0,0.68) 68%, rgba(0,0,0,0.90) 100% );
+    pointer-events: none;
+}
+
+.np-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    opacity: .032;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 300px;
+}
+
+.np-vignette {
+    display: none;
+}
+/* replaced by ::before gradient */
+
+/* ── NP Particle Canvas ── */
+#np-particles {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    width: 100%;
+    height: 100%;
+}
+
+
+
+/* Close button */
+.np-x {
+    position: absolute;
+    top: 52px;
+    left: 20px;
+    z-index: 20;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, transform .15s;
+}
+
+    .np-x:hover {
+        background: rgba(255,255,255,0.22);
+        transform: scale(1.06);
+    }
+
+/* ── Art Area (top half, centered) ── */
+.np-art-area {
+    position: relative;
+    z-index: 10;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 40px 20px;
+    min-height: 0;
+}
+
+/* Album art shell */
+.np-art-shell {
+    /* Size: fills available height without overflow */
+    width: min(300px, 54vw, 46vh);
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: visible;
+    position: relative;
+    flex-shrink: 0;
+    will-change: box-shadow;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.10);
+    transition: box-shadow .5s var(--ease);
+}
+
+    .np-art-shell.playing {
+        box-shadow: 0 40px 120px rgba(0,0,0,0.85), 0 0 0 1.5px rgba(255,255,255,0.14), 0 0 80px 16px var(--np-glow, rgba(250,45,90,0.22));
+    }
+
+#np-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    display: block;
+}
+
+.np-art-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Beat ring/glow effects removed — album art no longer pulses with rings or circles */
+.np-vinyl-ring,
+.np-art-glow,
+#np-particles {
+    display: none !important;
+}
+
+/* Pulse glow below art */
+.np-pulse {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 6px;
+    border-radius: 6px;
+    background: var(--np-glow, rgba(250,45,90,0.55));
+    filter: blur(12px);
+    opacity: .75;
+    pointer-events: none;
+}
+
+/* ── Controls Panel (bottom, glass) ── */
+.np-panel {
+    position: relative;
+    z-index: 15;
+    flex-shrink: 0;
+    padding: 20px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Track info row */
+.np-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.np-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.np-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+}
+
+.np-ch {
+    font-size: 13px;
+    color: rgba(255,255,255,0.52);
+}
+
+/* Fav button in info row */
+.np-act {
+    flex-shrink: 0;
+    color: rgba(255,255,255,0.45);
+    transition: color .18s var(--ease), transform .38s var(--spring);
+    padding: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+    .np-act:active {
+        transform: scale(0.82);
+        transition: transform .1s cubic-bezier(.4,0,1,1);
+    }
+
+    .np-act.on svg path {
+        fill: var(--acc);
+        stroke: var(--acc);
+    }
+
+/* Progress bar */
+.np-prog-wrap {
+    width: 100%;
+}
+
+.np-pb {
+    height: 3px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: height .14s var(--ease);
+}
+
+    .np-pb:hover, .np-pb.dragging {
+        height: 5px;
+    }
+
+.np-pf {
+    height: 100%;
+    background: rgba(255,255,255,0.92);
+    border-radius: 10px;
+    pointer-events: none;
+    will-change: width;
+}
+
+.np-pd {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    transition: transform .13s var(--spring);
+    pointer-events: none;
+}
+
+.np-pb:hover .np-pd, .np-pb.dragging .np-pd {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.np-times {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+}
+
+.np-t {
+    font-size: 10px;
+    color: rgba(255,255,255,0.40);
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+}
+
+/* Transport controls row */
+.np-ctrl {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nc {
+    color: rgba(255,255,255,0.62);
+    transition: color .18s var(--ease), transform .38s var(--spring);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+    .nc:active {
+        transform: scale(0.84);
+        transition: transform .1s cubic-bezier(.4,0,1,1);
+    }
+
+    .nc.on svg path, .nc.on svg polyline, .nc.on svg line {
+        stroke: var(--acc);
+    }
+
+/* Prev / Next — UI kit style icons */
+.nc-prev, .nc-next {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+}
+
+    .nc-prev svg, .nc-next svg {
+        width: 25px;
+        height: 25px;
+        fill: currentColor;
+        transition: transform .32s var(--spring);
+    }
+
+    .nc-next svg {
+        transform: scaleX(-1);
+    }
+
+/* Play button — flat icon, no circular background (Apple Music style) */
+.nc-play {
+    width: 58px;
+    height: 58px;
+    border-radius: 0;
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    transition: transform .38s var(--spring);
+    -webkit-tap-highlight-color: transparent;
+}
+
+    .nc-play:active {
+        transform: scale(0.86);
+        transition: transform .1s cubic-bezier(.4,0,1,1);
+    }
+
+    .nc-play svg {
+        width: 44px;
+        height: 44px;
+        fill: #fff;
+        transition: width .15s, height .15s;
+    }
+
+    .nc-play svg, .cb-play svg {
+        animation: ncIconPop .32s var(--spring) both;
+    }
+
+@keyframes ncIconPop {
+    0%   { transform: scale(.72); opacity: .55; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Hover-only affordances (scale/highlight on mouseover) are restricted to devices that can
+   actually hover — a real mouse/trackpad. On touch devices, browsers apply :hover on tap and
+   only clear it after the user taps elsewhere, which made these controls look "stuck" after
+   a press. Touch feedback instead comes entirely from the :active rules above, which release
+   immediately on touch-up. */
+@media (hover: hover) and (pointer: fine) {
+    .nc:hover {
+        color: #fff;
+        transform: scale(1.08);
+    }
+
+    .nc-next:hover svg {
+        transform: scaleX(-1) scale(1.06);
+    }
+
+    .nc-prev:hover svg {
+        transform: scale(1.06);
+    }
+
+    .nc-play:hover {
+        transform: scale(1.07);
+    }
+
+    .np-act:hover {
+        color: #fff;
+        transform: scale(1.18);
+    }
+}
+
+/* Volume row */
+.np-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.np-vol {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.np-vol-ico {
+    flex-shrink: 0;
+    display: block;
+    overflow: visible;
+    transition: opacity .15s;
+}
+
+.np-vol-ico-lo {
+    width: 13px;
+    height: 11px;
+}
+
+.np-vol-ico-hi {
+    width: 17px;
+    height: 12px;
+}
+
+/* ── Volume slider: clean flat iOS capsule, no knob/dot — glow lives on the fill itself ──
+   The outer element is a generous touch target; the thin visual bar is drawn on a centered
+   pseudo-element so the hit area stays large while the bar itself stays slim, like iOS's
+   Control Center slider. This also fixes drag being hard to grab on a 4px-tall strip. */
+.np-vol-track {
+    position: relative;
+    flex: 1;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.np-vol-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    border-radius: 2px;
+    background: rgba(255,255,255,0.18);
+    transition: height .18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+    .np-vol-track.active::before {
+        height: 9px;
+    }
+
+.np-vol-track-fill {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 4px;
+    width: 80%;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.88);
+    pointer-events: none;
+    will-change: width, height, box-shadow;
+    /* Smooth only for programmatic changes; suppressed while dragging (see .active) so the
+       fill tracks the finger 1:1 in real time instead of visibly lagging behind it. */
+    transition: width .1s var(--ease), height .18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .2s var(--ease);
+}
+
+    /* Real-time glow: rides along the fill's leading edge as its width changes, so it never
+       reads as a separate dot/knob — it's simply the fill lighting up (white) while you drag. */
+    .np-vol-track.active .np-vol-track-fill {
+        height: 9px;
+        transition: box-shadow .14s var(--ease);
+        box-shadow: 0 0 6px 0 rgba(255,255,255,.95), 0 0 16px 3px rgba(255,255,255,.5);
+    }
+
+.np-vol-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    /* Interaction is now driven directly off the track (see initVolTrack in app.js) so the
+       slider follows the pointer instantly instead of waiting on the native input's own
+       (sometimes throttled) drag handling. The input itself is kept only as the value store
+       for keyboard/accessibility use. */
+    pointer-events: none;
+}
+
+    .np-vol-input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 28px;
+        background: transparent;
+        cursor: pointer;
+    }
+
+/* mood CSS vars */
+#np {
+    --np-glow: rgba(250,45,90,0.30);
+    --np-acc: #fa2d5a;
+}
+
+/* ════════════════════════════════
+   NP LYRICS — 심플 가사 UI
+════════════════════════════════ */
+
+/* 가사 있을 때: 좌(아트) + 우(가사) 나란히 */
+.np-art-area.has-lyrics {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 52px;
+    padding: 80px 56px 24px;
+}
+
+    /* 가사 있을 때 앨범 아트 — 크게 유지 */
+    .np-art-area.has-lyrics .np-art-shell {
+        width: min(260px, 38vw, 36vh);
+        flex-shrink: 0;
+        align-self: center;
+    }
+
+/* 가사 없을 때: 패널 숨김 → 기존 레이아웃 그대로 */
+.np-art-area:not(.has-lyrics) .np-lyrics-panel {
+    display: none;
+}
+
+/* 가사 패널 컨테이너 — 배경/테두리/overflow 없음 */
+.np-lyrics-panel {
+    flex: 1;
+    min-width: 0;
+    /* max-width 제거 — 가사가 오른쪽으로 잘리는 문제 해결 */
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: visible; /* scale 확대 시 잘리지 않도록 */
+}
+
+/* 스크롤 영역 — mask로 자연스럽게 페이드 */
+.np-lyrics-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 40px 20px 40px 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    mask-image: linear-gradient( to bottom, transparent 0%, black 12%, black 88%, transparent 100% );
+    -webkit-mask-image: linear-gradient( to bottom, transparent 0%, black 12%, black 88%, transparent 100% );
+}
+
+    .np-lyrics-scroll::-webkit-scrollbar {
+        display: none;
+    }
+
+.np-lyrics-inner {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 가사 한 줄 — Apple Music 스타일 */
+.np-lyric-line {
+    /* font-size 고정 — reflow 없이 GPU 속성만 전환 */
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.48;
+    color: rgba(255,255,255,0.15);
+    padding: 5px 0;
+    cursor: pointer;
+    /* transform 제거 — color/opacity/filter만 전환해 레이아웃 완전 고정 */
+    transition: color 0.36s cubic-bezier(0.4,0,0.2,1), opacity 0.36s cubic-bezier(0.4,0,0.2,1), filter 0.36s cubic-bezier(0.4,0,0.2,1);
+    will-change: opacity, color, filter;
+    letter-spacing: -0.45px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    -webkit-font-smoothing: antialiased;
+}
+
+    /* 현재 줄 — transform 없이 색상/밝기/그림자만으로 하이라이트, 크기 변화 없음 */
+    .np-lyric-line.active {
+        font-weight: 900;
+        color: rgba(255,255,255,0.97);
+        filter: drop-shadow(0 0 18px rgba(255,255,255,0.18)) drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+        letter-spacing: -0.55px;
+    }
+
+    /* 바로 이전 줄 */
+    .np-lyric-line.prev {
+        font-weight: 800;
+        color: rgba(255,255,255,0.44);
+    }
+
+    /* 가까운 다음 줄들 */
+    .np-lyric-line.near {
+        color: rgba(255,255,255,0.20);
+    }
+
+    /* 호버 */
+    .np-lyric-line:hover {
+        color: rgba(255,255,255,0.62) !important;
+    }
+
+/* 페이드 div — mask-image로 대체, 숨김 */
+.np-lyrics-fade-top,
+.np-lyrics-fade-bot {
+    display: none;
+}
+
+/* 로딩 */
+.np-lyrics-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 100%;
+    min-height: 160px;
+    color: rgba(255,255,255,0.25);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+    .np-lyrics-loading .spinner {
+        width: 20px;
+        height: 20px;
+        border-width: 1.5px;
+    }
+
+/* 가사 없음 안내 */
+.np-no-lyrics {
+    position: absolute;
+    bottom: 180px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.22);
+    white-space: nowrap;
+    pointer-events: none;
+    letter-spacing: 0.2px;
+}
+
+
+/* ════════════════════════════════
+   BOTTOM BAR
+════════════════════════════════ */
+#bar {
+    grid-area: bar;
+    height: var(--bh);
+    background: rgba(5,5,14,0.88);
+    backdrop-filter: blur(60px) saturate(1.6);
+    -webkit-backdrop-filter: blur(60px) saturate(1.6);
+    border-top: 1px solid var(--glass-bd);
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    align-items: center;
+    padding: 0 18px;
+    gap: 10px;
+    position: relative;
+    z-index: 10;
+}
+
+/* Track info */
+.bt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.bt-art {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: var(--glass-md);
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.50);
+    cursor: pointer;
+    transition: box-shadow .4s, transform .2s;
+}
+
+    .bt-art:hover {
+        transform: scale(1.04);
+    }
+
+    .bt-art.glow {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.50), 0 0 20px var(--acc-dim);
+    }
+
+.bt-m {
+    flex: 1;
+    min-width: 0;
+}
+
+.bt-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: color .14s;
+}
+
+    .bt-title:hover {
+        color: var(--acc);
+    }
+
+.bt-ch {
+    font-size: 11px;
+    color: var(--t3);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bt-fav {
+    color: var(--t4);
+    transition: all .15s;
+    padding: 4px;
+    flex-shrink: 0;
+}
+
+    .bt-fav:hover {
+        color: var(--acc);
+        transform: scale(1.22);
+    }
+
+    .bt-fav.on svg path {
+        fill: var(--acc);
+        stroke: var(--acc);
+    }
+
+/* Visualizer */
+.vizz {
+    display: flex;
+    align-items: flex-end;
+    gap: 2.5px;
+    height: 17px;
+    flex-shrink: 0;
+}
+
+.vb {
+    width: 2.5px;
+    background: var(--acc);
+    border-radius: 2px;
+    opacity: .65;
+    animation: vz .8s ease-in-out infinite;
+}
+
+    .vb:nth-child(1) {
+        animation-delay: .00s;
+        height: 35%;
+    }
+
+    .vb:nth-child(2) {
+        animation-delay: .12s;
+        height: 72%;
+    }
+
+    .vb:nth-child(3) {
+        animation-delay: .24s;
+        height: 52%;
+    }
+
+    .vb:nth-child(4) {
+        animation-delay: .36s;
+        height: 88%;
+    }
+
+    .vb:nth-child(5) {
+        animation-delay: .48s;
+        height: 44%;
+    }
+
+@keyframes vz {
+    0%,100% {
+        transform: scaleY(1)
+    }
+
+    50% {
+        transform: scaleY(.25)
+    }
+}
+
+.vizz.off .vb {
+    animation-play-state: paused;
+}
+
+/* Controls */
+.bc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.bc-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.cb {
+    color: var(--t3);
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+}
+
+    .cb:hover {
+        color: var(--t1);
+        transform: scale(1.12);
+    }
+
+    .cb.on svg path, .cb.on svg polyline, .cb.on svg line {
+        stroke: var(--acc);
+    }
+
+.cb-play {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--t1);
+    color: #08080d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 18px rgba(255,255,255,0.10);
+    transition: all .16s var(--spring);
+}
+
+    .cb-play:hover {
+        background: #fff;
+        transform: scale(1.09);
+    }
+
+/* Progress bar (bottom) — smooth rAF-animated */
+.pb-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.pb-t {
+    font-size: 10px;
+    color: var(--t4);
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    min-width: 32px;
+}
+
+    .pb-t:last-child {
+        text-align: right;
+    }
+
+/* Track */
+.pb {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.10);
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: height .16s var(--ease);
+}
+
+    .pb:hover, .pb.dragging {
+        height: 6px;
+    }
+
+/* Fill — NO CSS transition; width driven by rAF in JS */
+.pbf {
+    height: 100%;
+    background: linear-gradient(90deg, var(--acc) 0%, #ff6090 60%, #ffb0c0 100%);
+    border-radius: 10px;
+    pointer-events: none;
+    position: relative;
+    will-change: width;
+}
+
+/* Thumb dot — fill과 동일한 left% 를 JS에서 직접 설정 */
+.pbd {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 13px;
+    height: 13px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.50);
+    transition: transform .14s var(--spring);
+    pointer-events: none;
+}
+
+.pb:hover .pbd, .pb.dragging .pbd {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Bottom bar hide when no track playing */
+#bar {
+    transition: transform .35s var(--ease), opacity .35s var(--ease);
+}
+
+    #bar.bar-hidden {
+        transform: translateY(100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+/* Volume / Echo / PiP */
+.be {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+}
+
+.be-btn {
+    color: var(--t3);
+    transition: all .14s;
+    display: flex;
+    align-items: center;
+}
+
+    .be-btn:hover {
+        color: var(--t1);
+    }
+
+.bvol {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vol-sl {
+    width: 70px;
+    height: 3px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.12);
+    border-radius: 3px;
+    cursor: pointer;
+    outline: none;
+}
+
+    .vol-sl::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 11px;
+        height: 11px;
+        background: #fff;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+        transition: transform .12s;
+    }
+
+    .vol-sl:hover::-webkit-slider-thumb {
+        transform: scale(1.25);
+    }
+
+.echo-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.echo-lbl {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--t4);
+}
+
+.echo-sl {
+    width: 48px;
+    height: 3px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.10);
+    border-radius: 3px;
+    cursor: pointer;
+    outline: none;
+}
+
+    .echo-sl::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 10px;
+        height: 10px;
+        background: var(--acc2);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+/* ════════════════════════════════
+   PiP
+════════════════════════════════ */
+#pip {
+    position: fixed;
+    bottom: calc(var(--bh) + 12px);
+    right: 12px;
+    width: 296px;
+    height: 166px;
+    border-radius: 13px;
+    overflow: hidden;
+    box-shadow: 0 18px 55px rgba(0,0,0,0.80);
+    border: 1px solid var(--glass-bd);
+    z-index: 50;
+    display: none;
+}
+
+    #pip.on {
+        display: block;
+        animation: pipIn .2s var(--ease);
+    }
+
+@keyframes pipIn {
+    from {
+        opacity: 0;
+        transform: scale(.92) translateY(8px)
+    }
+
+    to {
+        opacity: 1;
+        transform: none
+    }
+}
+
+#yt-player {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.pip-x {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    z-index: 5;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.58);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background .14s;
+}
+
+    .pip-x:hover {
+        background: var(--acc);
+    }
+
+/* ════════════════════════════════
+   TOAST
+════════════════════════════════ */
+#toast {
+    position: fixed;
+    bottom: calc(var(--bh) + 14px);
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: rgba(14,14,26,0.98);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-bd);
+    border-radius: 50px;
+    padding: 9px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0;
+    transition: all .25s var(--ease);
+    z-index: 600;
+    pointer-events: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+}
+
+    #toast.on {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+/* ════════════════════════════════
+   OVERLAY MODE
+════════════════════════════════ */
+
+/* 오버레이 버튼 — 하단 바 */
+.bt-overlay-btn {
+    color: var(--t4);
+    transition: color .15s, transform .15s;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px;
+    margin-left: 2px;
+}
+
+    .bt-overlay-btn:hover {
+        color: var(--t1);
+        transform: scale(1.14);
+    }
+
+    .bt-overlay-btn.on {
+        color: var(--acc);
+    }
+
+        .bt-overlay-btn.on svg rect:first-child {
+            stroke: var(--acc);
+        }
+
+/* 오버레이 버튼 — NP 패널 */
+.np-overlay-btn {
+    margin-left: 2px;
+}
+
+    .np-overlay-btn.on svg rect:first-child {
+        stroke: var(--acc);
+    }
+
+    .np-overlay-btn.on svg rect:last-child {
+        fill: var(--acc);
+    }
+
+    .np-overlay-btn.on {
+        color: var(--acc);
+    }
+
+/* ── 오버레이 모드 활성 시 메인 UI 숨김 ── */
+body.overlay-mode #shell {
+    display: none !important;
+}
+
+body.overlay-mode #tbar {
+    display: none !important;
+}
+
+body.overlay-mode #np {
+    display: none !important;
+}
+
+body.overlay-mode #pip {
+    display: none !important;
+}
+
+body.overlay-mode #bgc {
+    display: none !important;
+}
+
+body.overlay-mode .bg-over {
+    display: none !important;
+}
+
+body.overlay-mode .bg-grain {
+    display: none !important;
+}
+/* html/body 배경 투명하게 — 가사 영역이 데스크탑에 완전히 overlay되게 */
+body.overlay-mode {
+    background: transparent !important;
+}
+
+/* ════════════════════════════════
+   OVERLAY BAR (compact, 하단 고정)
+════════════════════════════════ */
+#ov-bar-wrap {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9100;
+    background: transparent;
+    pointer-events: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+body.overlay-mode #ov-bar-wrap {
+    display: flex;
+}
+
+/* 실제 바 컨텐츠 영역 — 창 높이를 100% 채움 */
+#ov-bar-inner {
+    width: min(680px, 96vw);
+    /* ★ 고정 높이 대신 100% — 창(100px)과 딱 맞게 */
+    height: 100%;
+    flex-shrink: 0;
+    background: rgba(8,8,18,0.90);
+    backdrop-filter: blur(48px) saturate(1.8);
+    -webkit-backdrop-filter: blur(48px) saturate(1.8);
+    border: none;
+    border-radius: 12px 12px 0 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    pointer-events: all;
+    position: relative;
+}
+
+    /* 왼쪽: 트랙 정보 (compact) */
+    #ov-bar-inner .ov-track {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    #ov-bar-inner .ov-art {
+        width: 36px;
+        height: 36px;
+        border-radius: 7px;
+        object-fit: cover;
+        background: var(--glass-md);
+        flex-shrink: 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    #ov-bar-inner .ov-meta {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #ov-bar-inner .ov-title {
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--t1);
+    }
+
+    #ov-bar-inner .ov-ch {
+        font-size: 10px;
+        color: var(--t3);
+        margin-top: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 가운데: 컨트롤 */
+    #ov-bar-inner .ov-ctrl {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    #ov-bar-inner .ov-btns {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    #ov-bar-inner .ov-pb-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 220px;
+    }
+
+    #ov-bar-inner .ov-pb-t {
+        font-size: 9px;
+        color: var(--t4);
+        font-family: 'DM Mono', monospace;
+        font-weight: 500;
+        min-width: 26px;
+    }
+
+        #ov-bar-inner .ov-pb-t:last-child {
+            text-align: right;
+        }
+
+    /* 오른쪽: 볼륨 + 닫기 */
+    #ov-bar-inner .ov-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+/* 오버레이 모드 닫기 버튼 */
+.ov-close-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--t3);
+    cursor: pointer;
+    transition: background .14s, color .14s;
+    flex-shrink: 0;
+}
+
+    .ov-close-btn:hover {
+        background: rgba(250,45,90,0.30);
+        color: #fff;
+    }
+
+/* ════════════════════════════════
+   PLAYLIST
+════════════════════════════════ */
+
+/* 새 플레이리스트 버튼 */
+.pl-new-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: linear-gradient(135deg, var(--acc), #c0185e);
+    border-radius: 50px;
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px var(--acc-dim);
+    transition: all .16s var(--ease);
+    flex-shrink: 0;
+}
+
+    .pl-new-btn:hover {
+        transform: scale(1.04);
+        box-shadow: 0 6px 20px var(--acc-glow);
+    }
+
+/* 플레이리스트 그리드 */
+#pl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+}
+
+/* 플레이리스트 카드 */
+.pl-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-bd);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s;
+    animation: cIn .38s var(--ease) both;
+}
+
+    .pl-card:hover {
+        transform: translateY(-5px) scale(1.025);
+        border-color: var(--glass-bd-hi);
+        box-shadow: 0 20px 48px rgba(0,0,0,0.60);
+    }
+
+/* 플레이리스트 커버 모자이크 */
+.pl-cover {
+    width: 100%;
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    overflow: hidden;
+    background: var(--glass-md);
+    position: relative;
+}
+
+    .pl-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .pl-cover.single img {
+        grid-column: 1/-1;
+        grid-row: 1/-1;
+    }
+
+.pl-cover-empty {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(250,45,90,0.15), rgba(167,139,250,0.10));
+}
+
+    .pl-cover-empty svg {
+        opacity: .25;
+    }
+
+.pl-card-info {
+    padding: 10px 11px 12px;
+    background: linear-gradient(180deg, var(--glass) 0%, rgba(8,8,20,0.55) 100%);
+}
+
+.pl-card-name {
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+}
+
+.pl-card-count {
+    font-size: 10px;
+    color: var(--t3);
+}
+
+/* 뒤로 버튼 */
+.pl-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--t2);
+    transition: color .14s;
+    padding: 4px 0;
+}
+
+    .pl-back-btn:hover {
+        color: var(--t1);
+    }
+
+/* 상세 헤더 */
+.pl-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 22px;
+    padding: 6px 0;
+}
+
+.pl-detail-cover {
+    width: 90px;
+    height: 90px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    background: var(--glass-md);
+}
+
+    .pl-detail-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .pl-detail-cover.single img {
+        grid-column: 1/-1;
+        grid-row: 1/-1;
+    }
+
+.pl-detail-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    margin-bottom: 5px;
+}
+
+.pl-detail-count {
+    font-size: 12px;
+    color: var(--t3);
+}
+
+/* 플레이리스트 트랙 행 */
+.pl-track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .12s;
+    border: 1px solid transparent;
+}
+
+    .pl-track:hover {
+        background: var(--glass);
+    }
+
+    .pl-track.playing {
+        background: rgba(250,45,90,0.08);
+        border-color: rgba(250,45,90,0.18);
+    }
+
+.pl-track-num {
+    font-size: 10.5px;
+    color: var(--t4);
+    font-family: 'DM Mono', monospace;
+    min-width: 18px;
+    text-align: right;
+}
+
+.pl-track-art {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--glass-md);
+    flex-shrink: 0;
+}
+
+.pl-track-m {
+    flex: 1;
+    min-width: 0;
+}
+
+.pl-track-t {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pl-track-c {
+    font-size: 10.5px;
+    color: var(--t3);
+    margin-top: 1px;
+}
+
+.pl-track-dur {
+    font-size: 10.5px;
+    color: var(--t3);
+    flex-shrink: 0;
+    font-family: 'DM Mono', monospace;
+}
+
+.pl-track-del {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--t4);
+    opacity: 0;
+    transition: opacity .12s, background .12s, color .12s;
+    flex-shrink: 0;
+}
+
+.pl-track:hover .pl-track-del {
+    opacity: 1;
+}
+
+.pl-track-del:hover {
+    background: rgba(255,95,87,0.22);
+    color: #ff5f57;
+}
+
+/* 컨텍스트 메뉴 */
+#pl-ctx-menu {
+    position: fixed;
+    z-index: 800;
+    min-width: 200px;
+    background: rgba(10,10,22,0.97);
+    backdrop-filter: blur(40px) saturate(1.8);
+    border: 1px solid var(--glass-bd);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 20px 56px rgba(0,0,0,0.70);
+    display: none;
+    animation: vIn .15s var(--ease) both;
+}
+
+    #pl-ctx-menu.on {
+        display: block;
+    }
+
+.pl-ctx-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--t4);
+    padding: 4px 10px 6px;
+}
+
+.pl-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    color: var(--t2);
+    cursor: pointer;
+    transition: background .1s, color .1s;
+    text-align: left;
+}
+
+    .pl-ctx-item:hover {
+        background: var(--glass-md);
+        color: var(--t1);
+    }
+
+.pl-ctx-new {
+    color: var(--acc);
+}
+
+    .pl-ctx-new:hover {
+        background: var(--acc-dim);
+        color: var(--acc);
+    }
+
+.pl-ctx-divider {
+    height: 1px;
+    background: var(--glass-bd);
+    margin: 4px 6px;
+}
+
+/* 곡 추가 버튼 (상세 헤더) */
+.pl-add-track-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    background: rgba(250,45,90,0.14);
+    border: 1px solid rgba(250,45,90,0.30);
+    border-radius: 50px;
+    color: var(--acc);
+    font-size: 11.5px;
+    font-weight: 600;
+    transition: all .15s var(--ease);
+}
+
+    .pl-add-track-btn:hover {
+        background: rgba(250,45,90,0.24);
+        transform: scale(1.04);
+    }
+
+/* ════════════════════════════════
+   커스텀 다이얼로그
+════════════════════════════════ */
+#pl-dialog-overlay,
+#pl-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn .18s ease;
+}
+
+    #pl-dialog-overlay.on,
+    #pl-confirm-overlay.on {
+        display: flex;
+    }
+
+@keyframes fadeIn {
+    from {
+        opacity: 0
+    }
+
+    to {
+        opacity: 1
+    }
+}
+
+#pl-dialog, #pl-confirm {
+    background: rgba(14,14,26,0.98);
+    border: 1px solid var(--glass-bd);
+    border-radius: 18px;
+    padding: 26px 26px 22px;
+    width: 340px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.70);
+    animation: dlgIn .22s cubic-bezier(.34,1.4,.64,1);
+}
+
+@keyframes dlgIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.pl-dialog-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    margin-bottom: 16px;
+}
+
+.pl-confirm-msg {
+    font-size: 13px;
+    color: var(--t2);
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.pl-dialog-input {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--glass-md);
+    border: 1px solid var(--glass-bd);
+    border-radius: 10px;
+    color: var(--t1);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .18s, box-shadow .18s;
+    margin-bottom: 16px;
+}
+
+    .pl-dialog-input:focus {
+        border-color: rgba(250,45,90,0.45);
+        box-shadow: 0 0 0 3px var(--acc-dim);
+    }
+
+    .pl-dialog-input::placeholder {
+        color: var(--t4);
+    }
+
+.pl-dialog-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.pl-dialog-btn {
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .14s;
+}
+
+.pl-dialog-cancel {
+    background: var(--glass);
+    color: var(--t2);
+    border: 1px solid var(--glass-bd);
+}
+
+    .pl-dialog-cancel:hover {
+        background: var(--glass-md);
+        color: var(--t1);
+    }
+
+.pl-dialog-ok {
+    background: linear-gradient(135deg, var(--acc), #c0185e);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 14px var(--acc-dim);
+}
+
+    .pl-dialog-ok:hover {
+        transform: scale(1.04);
+        box-shadow: 0 6px 20px var(--acc-glow);
+    }
+
+.pl-dialog-danger {
+    background: linear-gradient(135deg, #ff5f57, #d03030);
+    box-shadow: 0 4px 14px rgba(255,95,87,0.3);
+}
+
+    .pl-dialog-danger:hover {
+        box-shadow: 0 6px 20px rgba(255,95,87,0.5);
+    }
+
+/* ════════════════════════════════
+   곡 추가 모달
+════════════════════════════════ */
+#pl-add-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1900;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+    #pl-add-modal-overlay.on {
+        display: flex;
+    }
+
+#pl-add-modal {
+    background: rgba(12,12,22,0.98);
+    border: 1px solid var(--glass-bd);
+    border-radius: 20px;
+    width: 520px;
+    max-width: 95vw;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.75);
+    animation: dlgIn .22s cubic-bezier(.34,1.4,.64,1);
+}
+
+.pl-add-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 12px;
+    border-bottom: 1px solid var(--glass-bd);
+    flex-shrink: 0;
+}
+
+.pl-add-modal-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.pl-add-modal-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--glass);
+    border: 1px solid var(--glass-bd);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--t3);
+    cursor: pointer;
+    transition: all .14s;
+}
+
+    .pl-add-modal-close:hover {
+        background: var(--glass-md);
+        color: var(--t1);
+    }
+
+.pl-add-modal-search {
+    position: relative;
+    flex-shrink: 0;
+    padding: 14px 16px 10px;
+}
+
+.pl-add-modal-inp {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    background: var(--glass-md);
+    border: 1px solid var(--glass-bd);
+    border-radius: 50px;
+    color: var(--t1);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: all .18s;
+}
+
+    .pl-add-modal-inp:focus {
+        border-color: rgba(250,45,90,0.40);
+        box-shadow: 0 0 0 3px var(--acc-dim);
+    }
+
+    .pl-add-modal-inp::placeholder {
+        color: var(--t4);
+    }
+
+.pl-add-modal-search .srch-ico {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+#pl-add-modal-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px 12px;
+}
+
+.pl-add-modal-hint {
+    text-align: center;
+    color: var(--t4);
+    font-size: 12px;
+    padding: 32px 0;
+}
+
+/* 검색 결과 행 */
+.pl-modal-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px;
+    border-radius: 10px;
+    cursor: default;
+    transition: background .12s;
+}
+
+    .pl-modal-row:hover {
+        background: var(--glass);
+    }
+
+.pl-modal-row-art {
+    width: 40px;
+    height: 40px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: var(--glass-md);
+    flex-shrink: 0;
+}
+
+.pl-modal-row-m {
+    flex: 1;
+    min-width: 0;
+}
+
+.pl-modal-row-t {
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pl-modal-row-c {
+    font-size: 10.5px;
+    color: var(--t3);
+    margin-top: 1px;
+}
+
+.pl-modal-row-dur {
+    font-size: 10px;
+    color: var(--t4);
+    flex-shrink: 0;
+    font-family: 'DM Mono', monospace;
+}
+
+.pl-modal-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: rgba(250,45,90,0.14);
+    border: 1px solid rgba(250,45,90,0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--acc);
+    cursor: pointer;
+    transition: all .14s;
+}
+
+    .pl-modal-add-btn:hover {
+        background: rgba(250,45,90,0.28);
+        transform: scale(1.12);
+    }
+
+    .pl-modal-add-btn.added {
+        background: rgba(250,45,90,0.22);
+        border-color: var(--acc);
+        color: var(--acc);
+    }
+
+.c-pl-add {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.11);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .15s;
+    opacity: 0;
+    color: rgba(255,255,255,.85);
+}
+
+.card:hover .c-pl-add {
+    opacity: 1;
+}
+
+.c-pl-add:hover {
+    transform: scale(1.14);
+    background: rgba(250,45,90,0.38);
+}
+
+
+.glass-panel {
+    background: var(--glass-md);
+    backdrop-filter: var(--blur);
+    border: 1px solid var(--glass-bd);
+    border-radius: 16px;
+}
+
+
+
+/* ════════════════════════════════════════════════════
+   FULLSCREEN NP  v5
+   ────────────────────────────────────────────────────
+   레이아웃:
+   · #np.fullscreen 은 position:fixed, overflow:hidden
+   · 좌측 46%: 아트 + 시스템 UI (JS로 패널 위치 픽셀 고정)
+   · 우측 54%: 가사 (JS 직접 조작, CSS transition)
+   · fullscreen 해제 시: JS가 np-panel inline style 전부 초기화
+════════════════════════════════════════════════════ */
+
+/* ── 배경 ── */
+#np.fullscreen #np-bg {
+    position: fixed;
+    width: 100vw !important;
+    height: 100vh !important;
+    top: 0;
+    left: 0;
+}
+
+#np.fullscreen::before {
+    background: none;
+}
+
+#np.fullscreen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient( to right, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.18) 35%, rgba(0,0,0,0.58) 56%, rgba(0,0,0,0.80) 100% );
+}
+
+/* ── 좌측: 아트 영역 ── */
+#np.fullscreen .np-art-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 46% !important;
+    height: 100% !important;
+    flex: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 60px 20px 130px 52px !important;
+    gap: 0 !important;
+    min-height: unset !important;
+    z-index: 10;
+}
+    /* has-lyrics 오염 차단 */
+    #np.fullscreen .np-art-area.has-lyrics {
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 60px 20px 130px 52px !important;
+        gap: 0 !important;
+    }
+
+/* 앨범 아트 크기 */
+#np.fullscreen .np-art-shell {
+    width: min(420px, 38vw, 54vh) !important;
+    box-shadow: 0 48px 140px rgba(0,0,0,0.85) !important;
+}
+
+/* 일반모드 가사 패널 숨김 */
+#np.fullscreen .np-lyrics-panel {
+    display: none !important;
+}
+
+/* ── 시스템 UI 패널: JS가 top/left/width 픽셀 세팅 ── */
+#np.fullscreen .np-panel {
+    position: absolute !important;
+    background: none !important;
+    box-shadow: none !important;
+    padding: 14px 0 0 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    z-index: 15;
+}
+
+#np.fullscreen .np-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#np.fullscreen .np-title {
+    font-size: clamp(15px,1.45vw,20px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#np.fullscreen .np-ch {
+    font-size: clamp(11px,1.05vw,14px);
+}
+
+#np.fullscreen .np-act {
+    display: none !important;
+}
+
+#np.fullscreen .np-prog-wrap {
+    width: 100%;
+}
+
+#np.fullscreen .np-ctrl {
+    display: none !important;
+}
+
+#np.fullscreen .np-bottom-row {
+    display: none !important;
+}
+
+
+
+/* ══════════════════════════════════════════════════
+   전체화면 가사 패널
+   ──────────────────────────────────────────────────
+   애니메이션 핵심:
+   · .np-fs-lyric-line 은 항상 display:block
+   · JS가 매 tick마다 각 줄의 style.opacity / style.transform /
+     style.filter / style.fontSize 를 직접 세팅
+   · CSS transition 은 각 줄에 인라인으로 부여
+     → "이전 값 → 새 값" 을 브라우저가 보간
+   · 이 방식은 클래스 교체 없이 연속 값 변화를 처리해
+     레이아웃 점프와 transition 미발동 문제를 원천 차단
+══════════════════════════════════════════════════ */
+/* ── 전체화면 가사 컨테이너 v6 ── */
+#np-fs-lyrics {
+    display: none;
+}
+
+#np.fullscreen #np-fs-lyrics {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 62%;
+    height: 100%; /* 54%→62%: 가사 표시 영역 확장 */
+    display: block;
+    overflow: hidden;
+    /* 상하 페이드 — mask로 가장자리 자연스럽게 */
+    -webkit-mask-image: linear-gradient( to bottom, transparent 0%, black 10%, black 90%, transparent 100% );
+    mask-image: linear-gradient( to bottom, transparent 0%, black 10%, black 90%, transparent 100% );
+    padding: 0 40px 0 32px; /* 오른쪽 패딩 68→40px 축소 */
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* inner: 모든 줄을 담는 절대 위치 박스
+   JS가 height = N * FS_ROW_H 로 설정하고
+   translateY로 스크롤함 */
+#np-fs-lyrics-inner {
+    position: relative;
+    width: 100%;
+    /* height은 JS가 동적으로 지정 */
+    will-change: transform; /* 스크롤 translateY GPU 가속 */
+}
+
+/* 각 줄: 절대 위치 고정 행
+   top = i * FS_ROW_H (JS 지정)
+   height = FS_ROW_H (62px) 고정 — layout shift 없음
+   JS가 opacity/filter/transform(scaleX·scaleY)만 변경 → GPU 전담 */
+.np-fs-lyric-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 56px; /* FS_ROW_H와 반드시 일치 */
+    display: flex;
+    align-items: center;
+    /* 긴 가사: font-size를 줄여서 한 줄에 맞춤 — height/layout 변화 없음 */
+    font-size: clamp(17px, 2.1vw, 28px);
+    font-weight: 600;
+    line-height: 1.35;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-font-smoothing: antialiased;
+    cursor: pointer;
+    pointer-events: auto;
+    transform-origin: left center;
+    /* opacity/filter/transform 만 transition — 모두 GPU compositor 전담 */
+}
+
+/* 아티스트명 삭제 */
+#np-fs-artist {
+    display: none !important;
+}
+
+/* ── 전체화면 가사 대기 ••• 카운트다운 ────────────────────────────
+   #np-fs-dots: #np-fs-lyrics 와 동일한 우측 패널 위에 절대 위치
+   .np-fs-dot: 각 점 — 꺼짐(dim) / 켜짐(on, glow)
+   _showFsDots(lit) 호출 시 lit 개수만큼 .on 클래스 부여
+──────────────────────────────────────────────────────────────── */
+/* ── 전체화면 ••• dot 줄 — .np-fs-lyric-line 의 특수 변형 ─────────────
+   dot 줄은 가사 시스템과 동일한 슬롯/transition 으로 처리됨
+   별도 컨테이너 없이 #np-fs-lyrics-inner 안에 top=-FS_ROW_H 로 삽입 */
+.np-fs-dot-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* 텍스트 없음 — dot span 만 */
+    /* 1. 왼쪽 여백을 주어 빛(글로우)이 잘리지 않게 합니다. */
+    padding-left: 25px;
+    /* 2. 왼쪽으로 밀린 만큼 전체 위치를 살짝 왼쪽으로 당겨서 중앙을 맞춥니다. */
+    margin-left: -15px;
+}
+
+/* 꺼진 점 */
+.np-fs-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.20);
+    transition: background 0.40s cubic-bezier(0.4,0,0.2,1), box-shadow 0.40s cubic-bezier(0.4,0,0.2,1);
+}
+
+    /* 켜진 점: 밝아지고 빛 번짐 */
+    .np-fs-dot.on {
+        background: rgba(255,255,255,0.95);
+        box-shadow: 0 0 4px 1px rgba(255,255,255,0.60), 0 0 22px 7px rgba(255,255,255,0.25);
+    }
+
+/* ════════════════════════════════════════════
+   [FIX] MAXIMIZED — 창 모서리 빈틈 제거
+   ────────────────────────────────────────────
+   Windows DWM 이 최대화 상태에서도 라운딩을
+   유지하는 경우 HTML 콘텐츠가 모서리를 꽉
+   채우지 못해 배경 틈새가 보인다.
+   body.maximized 클래스(JS가 부여)를 훅으로
+   삼아 모든 최상위 레이어의 border-radius를
+   0으로 덮어써 빈틈을 완전히 막는다.
+════════════════════════════════════════════ */
+body.maximized {
+    border-radius: 0 !important;
+}
+
+    body.maximized #shell,
+    body.maximized #np,
+    body.maximized #np-bg,
+    body.maximized canvas#bgc,
+    body.maximized .bg-over,
+    body.maximized .bg-grain,
+    body.maximized .np-grain,
+    body.maximized .np-vignette {
+        border-radius: 0 !important;
+    }
+
+/* ════════════════════════════════════════════════════════
+   ANDROID / MOBILE OVERRIDES
+   — Replaces desktop sidebar+bar layout with
+     bottom nav + mini player + NP fullscreen
+════════════════════════════════════════════════════════ */
+
+/* ── Root tokens override ── */
+:root {
+    --nav-h: 62px;        /* bottom nav height */
+    --mini-h: 76px;       /* mini player bar height */
+    --safe-top: env(safe-area-inset-top, 24px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Scrollbar: hidden on mobile ── */
+* { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+::-webkit-scrollbar { display: none !important; }
+
+/* ── Remove desktop titlebar ── */
+#tbar { display: none !important; }
+
+/* ── Shell: full screen, single column ── */
+#shell {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100dvh;
+    grid-template-columns: unset;
+    grid-template-rows: unset;
+    grid-template-areas: unset;
+    overflow: hidden;
+    padding-top: var(--safe-top);
+}
+
+/* ── Hide desktop sidebar ── */
+#side { display: none !important; }
+
+/* ── Main content ── */
+#main {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 0;
+    padding-bottom: calc(var(--mini-h) + var(--nav-h) + var(--safe-bot) + 8px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    grid-area: unset;
+}
+
+/* ── View padding ── */
+.view-inner {
+    padding: 0 16px;
+}
+
+/* 홈 화면만 좌우 여백 축소 (다른 탭은 기존 유지) */
+#v-home .view-inner {
+    padding: 0 4px;
+}
+
+/* 데스크톱 전용 :hover 리프트/확대 효과를 홈 화면 카드에서 비활성화.
+   모바일 WebView는 탭 시 :hover가 그대로 발동되는 경우가 있어,
+   카드가 위로 들리고 확대되면서(translateY + scale) 가로 스크롤
+   행 바깥으로 밀려나 좌측/상단이 잘리는 문제의 근본 원인이었다. */
+#v-home .card:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--glass-bd);
+}
+
+/* ── Mobile header ── */
+.mob-header {
+    padding: 18px 0 10px;
+}
+
+.mob-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.mob-logo-word {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: rgba(255,255,255,0.75);
+    text-transform: uppercase;
+}
+
+.mob-greet {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    margin-bottom: 3px;
+}
+
+.mob-greet-sub {
+    font-size: 13px;
+    color: var(--t3);
+}
+
+.view-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+}
+
+/* ── Mobile search bar ── */
+.mob-srch-wrap {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.mob-srch-wrap .srch-inp {
+    width: 100%;
+    max-width: 100%;
+    padding: 13px 80px 13px 44px;
+    font-size: 15px;
+    border-radius: 16px;
+}
+
+.mob-srch-wrap .srch-ico {
+    left: 14px;
+    width: 16px;
+    height: 16px;
+}
+
+.mob-srch-wrap .srch-btn {
+    right: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+}
+
+.mob-srch-wrap .sug-drop {
+    border-radius: 16px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.sug-item {
+    padding: 13px 16px;
+    font-size: 14px;
+}
+
+/* ── Cards: 2-column grid on mobile ── */
+.cgrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+/* Horizontal rows: touch scrollable */
+.hrow {
+    gap: 10px;
+    margin-bottom: 24px;
+    padding-bottom: 8px;
+}
+
+.hrow .card {
+    flex: 0 0 148px;
+}
+
+/* Touch target improvement */
+.card {
+    border-radius: 14px;
+}
+
+.card:hover {
+    transform: none; /* no hover lift on touch */
+}
+
+.card:active {
+    transform: scale(0.96);
+}
+
+.c-fav {
+    opacity: 1 !important; /* always visible on touch */
+}
+
+.c-overlay {
+    opacity: 0; /* tap to play, no hover overlay on mobile */
+}
+
+.c-thumb {
+    cursor: pointer;
+}
+
+/* ── Section header ── */
+.sh h2, .sh h3 {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+/* ── Bottom nav ── */
+#mob-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    height: calc(var(--nav-h) + var(--safe-bot));
+    padding-bottom: var(--safe-bot);
+    background: rgba(5,5,14,0.92);
+    backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    border-top: 1px solid var(--glass-bd);
+    display: flex;
+    align-items: stretch;
+}
+
+.mn-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 0;
+    color: var(--t4);
+    font-size: 10px;
+    font-weight: 500;
+    transition: color 0.15s;
+    border: none;
+    background: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mn-btn.on {
+    color: var(--acc);
+}
+
+.mn-ico {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.mn-btn.on .mn-ico path,
+.mn-btn.on .mn-ico circle,
+.mn-btn.on .mn-ico line,
+.mn-btn.on .mn-ico polyline,
+.mn-btn.on .mn-ico rect {
+    stroke: var(--acc);
+}
+
+/* ── Mini player bar — Apple Music floating card ── */
+#bar {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--nav-h) + var(--safe-bot) + 10px);
+    z-index: 190;
+    height: 64px;
+    background: rgba(22,22,32,0.93);
+    backdrop-filter: blur(52px) saturate(2.0);
+    -webkit-backdrop-filter: blur(52px) saturate(2.0);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    box-shadow:
+        0 12px 40px rgba(0,0,0,0.60),
+        0 2px 8px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    grid-template-columns: unset;
+    grid-area: unset;
+    transition: transform 0.42s cubic-bezier(0.34,1.1,0.64,1), opacity 0.3s ease;
+}
+
+#bar.bar-hidden {
+    transform: translateY(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+}
+
+.bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 64px;
+    padding: 10px 4px 10px 10px;
+}
+
+#bar .bt-art {
+    width: 44px;
+    height: 44px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.55);
+    cursor: pointer;
+    object-fit: cover;
+}
+
+#bar .bt-m {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+#bar .bt-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgba(255,255,255,0.96);
+}
+
+#bar .bt-ch {
+    font-size: 11px;
+    color: rgba(255,255,255,0.44);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#bar .bt-fav {
+    display: none !important;
+}
+
+/* 변경 */
+.bar-play {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.92);
+    color: #08080d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    transition: transform 0.14s var(--spring), background 0.14s;
+}
+
+    .bar-play svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+    }
+
+.bar-play:active {
+    transform: scale(0.86);
+    background: #fff;
+}
+
+.bar-next {
+    color: rgba(255,255,255,0.55);
+    padding: 8px 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .14s, transform .14s;
+}
+
+    .bar-next svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+        transform: scaleX(-1);
+    }
+
+    .bar-next:hover {
+        color: #fff;
+    }
+
+    .bar-next:active {
+        transform: scale(0.88);
+    }
+
+.bar-prog {
+    height: 2px;
+    background: rgba(255,255,255,0.07);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.bar-prog-fill {
+    height: 100%;
+    background: rgba(255,255,255,0.42);
+    width: 0%;
+    transition: width 0.25s linear;
+    pointer-events: none;
+}
+
+/* Hide desktop bar elements */
+.bc, .be, .pb-row, .p-cur, .p-tot { display: none !important; }
+#bar .vizz { display: none !important; }
+#bt-overlay-btn { display: none !important; }
+
+/* ── NP Overlay: mobile layout ── */
+#np {
+    flex-direction: column;
+}
+
+.np-x {
+    top: calc(var(--safe-top) + 12px);
+    left: 16px;
+    width: 38px;
+    height: 38px;
+}
+
+/* Art area: portrait */
+.np-art-area {
+    flex: 1;
+    padding: 60px 32px 16px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.np-art-shell {
+    width: min(280px, 80vw, 42vh);
+}
+
+/* Lyrics in portrait: below art */
+.np-lyrics-panel {
+    width: 100%;
+    max-height: 200px;
+    margin-top: 16px;
+    height: auto;
+    flex: none;
+}
+
+.np-art-area.has-lyrics {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 60px 20px 8px;
+}
+
+.np-art-area.has-lyrics .np-art-shell {
+    width: min(220px, 60vw, 32vh);
+}
+
+.np-lyrics-scroll {
+    padding: 20px 16px;
+    max-height: 180px;
+}
+
+.np-lyric-line {
+    font-size: 17px;
+    padding: 4px 0;
+}
+
+/* Controls panel: compact on mobile */
+.np-panel {
+    padding: 12px 20px calc(var(--safe-bot) + 16px);
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.np-title {
+    font-size: 18px;
+}
+
+.np-ctrl {
+    padding: 0 4px;
+}
+
+.nc-play {
+    width: 56px;
+    height: 56px;
+}
+
+.np-bottom-row {
+    gap: 12px;
+}
+
+/* ── NP 전체화면 버튼 ── */
+.np-fs-btn {
+    position: absolute;
+    top: calc(var(--safe-top) + 12px);
+    right: 16px;
+    z-index: 20;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, transform .15s;
+}
+.np-fs-btn:hover { background: rgba(255,255,255,0.22); transform: scale(1.06); }
+.np-fs-btn.on svg { stroke: var(--acc); }
+
+/* ── Landscape NP 전체화면 모드 ── */
+@media (orientation: landscape) {
+    #mob-nav { display: none !important; }
+    #bar { bottom: 0; }
+
+    /* 전체화면 NP: 가로 모드 전용 레이아웃 */
+    #np.np-landscape {
+        flex-direction: row !important;
+    }
+
+    /* 왼쪽 영역: 앨범카드 + 곡정보 + 재생바 */
+    #np.np-landscape .np-left-col {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 46% !important;
+        height: 100% !important;
+        padding: 32px 24px 32px 36px !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+
+    /* 앨범 아트 영역 (빨간) */
+    #np.np-landscape .np-art-area {
+        flex: none !important;
+        width: 100% !important;
+        height: auto !important;
+        padding: 0 !important;
+        justify-content: center !important;
+        align-items: center !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+    #np.np-landscape .np-art-area.has-lyrics {
+        flex-direction: column !important;
+        gap: 0 !important;
+        padding: 0 !important;
+    }
+    #np.np-landscape .np-art-shell {
+        width: min(280px, 36vw, 60vh) !important;
+    }
+    #np.np-landscape .np-art-area.has-lyrics .np-art-shell {
+        width: min(280px, 36vw, 60vh) !important;
+    }
+
+    /* 가사 패널 숨기기 (오른쪽 가사 패널로 대체) */
+    #np.np-landscape .np-lyrics-panel { display: none !important; }
+
+    /* NP 패널 (노란+초록): 앨범 카드 아래 */
+    #np.np-landscape .np-panel {
+        position: static !important;
+        width: 100% !important;
+        background: none !important;
+        box-shadow: none !important;
+        padding: 12px 0 0 0 !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* 제목/아티스트 표시 */
+    #np.np-landscape .np-title {
+        font-size: clamp(14px, 1.8vw, 20px) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    #np.np-landscape .np-ch {
+        font-size: clamp(11px, 1.2vw, 14px) !important;
+    }
+
+    /* 숨길 UI 요소들 */
+    #np.np-landscape .np-ctrl,
+    #np.np-landscape .np-bottom-row,
+    #np.np-landscape .np-act {
+        display: none !important;
+    }
+
+    /* 재생바만 표시 (초록) */
+    #np.np-landscape .np-prog-wrap {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    /* 오른쪽 영역: 가사 (파란) */
+    #np.np-landscape .np-right-col {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        width: 54% !important;
+        height: 100% !important;
+        padding: 20px 28px 20px 12px !important;
+        overflow: hidden !important;
+        position: relative !important;
+        z-index: 10 !important;
+        /* 위아래 페이드 */
+        -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            black 12%,
+            black 88%,
+            transparent 100%
+        ) !important;
+        mask-image: linear-gradient(
+            to bottom,
+            transparent 0%,
+            black 12%,
+            black 88%,
+            transparent 100%
+        ) !important;
+    }
+
+    /* 가로 가사 스크롤 영역 */
+    #np.np-landscape .np-ls-scroll {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        height: 100% !important;
+        scrollbar-width: none !important;
+        padding: 30px 8px !important;
+    }
+    #np.np-landscape .np-ls-scroll::-webkit-scrollbar { display: none !important; }
+
+    /* 가사 한 줄 — 최대 5줄 정도 보이게 크게 */
+    #np.np-landscape .np-ls-line {
+        font-size: clamp(18px, 2.8vw, 32px) !important;
+        font-weight: 700 !important;
+        line-height: 1.5 !important;
+        color: rgba(255,255,255,0.18) !important;
+        padding: 6px 0 !important;
+        cursor: pointer !important;
+        word-break: keep-all !important;
+        overflow-wrap: break-word !important;
+        transition: color 0.4s cubic-bezier(0.4,0,0.2,1),
+                    filter 0.4s cubic-bezier(0.4,0,0.2,1) !important;
+        will-change: color, filter !important;
+        -webkit-font-smoothing: antialiased !important;
+    }
+    #np.np-landscape .np-ls-line.active {
+        font-size: clamp(20px, 3.2vw, 36px) !important;
+        font-weight: 800 !important;
+        color: rgba(255,255,255,0.97) !important;
+        filter: drop-shadow(0 0 20px rgba(255,255,255,0.18)) !important;
+    }
+    #np.np-landscape .np-ls-line.prev {
+        color: rgba(255,255,255,0.52) !important;
+    }
+    #np.np-landscape .np-ls-line.near {
+        color: rgba(255,255,255,0.26) !important;
+    }
+    #np.np-landscape .np-ls-line:active {
+        color: rgba(255,255,255,0.7) !important;
+    }
+
+    /* 가사 없음 */
+    #np.np-landscape .np-ls-empty {
+        font-size: 13px !important;
+        color: rgba(255,255,255,0.28) !important;
+        text-align: center !important;
+        padding: 40px 0 !important;
+    }
+
+    /* 닫기 버튼 위치 조정 */
+    #np.np-landscape .np-x {
+        top: 12px !important;
+        left: 16px !important;
+        z-index: 30 !important;
+    }
+    #np.np-landscape .np-fs-btn {
+        top: 12px !important;
+        right: 16px !important;
+        z-index: 30 !important;
+    }
+
+    /* 배경 레이어 */
+    #np.np-landscape #np-bg {
+        position: fixed !important;
+        width: 100vw !important;
+        width: 100dvw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        top: 0 !important; left: 0 !important;
+    }
+    #np.np-landscape::before { background: none !important; }
+    #np.np-landscape::after {
+        content: '' !important;
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 2 !important;
+        pointer-events: none !important;
+        background: linear-gradient(
+            to right,
+            rgba(0,0,0,0.06) 0%,
+            rgba(0,0,0,0.18) 35%,
+            rgba(0,0,0,0.58) 56%,
+            rgba(0,0,0,0.80) 100%
+        ) !important;
+    }
+
+    /* 기존 풀스크린(fullscreen 클래스) 관련 재정의 방지 */
+    #np.np-landscape.fullscreen .np-art-area { all: unset !important; }
+}
+
+/* ── Hide unused desktop-only elements ── */
+#ov-bar-wrap { display: none !important; }
+#pip { display: none !important; }
+#np-overlay-btn { display: none !important; }
+.np-overlay-btn { display: none !important; }
+.bt-overlay-btn { display: none !important; }
+
+/* ── YouTube player: hidden but loaded ── */
+#yt-player-wrap {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    top: -9999px;
+    left: -9999px;
+    z-index: -1;
+}
+
+/* ── Dialog / modals: full screen on mobile ── */
+#pl-dialog-overlay,
+#pl-confirm-overlay,
+#pl-add-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(0,0,0,0.72);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+#pl-dialog-overlay.on,
+#pl-confirm-overlay.on,
+#pl-add-modal-overlay.on {
+    display: flex;
+}
+
+#pl-dialog,
+#pl-confirm {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(16,16,28,0.98);
+    border: 1px solid var(--glass-bd);
+    border-radius: 24px 24px 0 0;
+    padding: 24px 24px calc(var(--safe-bot) + 24px);
+}
+
+#pl-add-modal {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(16,16,28,0.98);
+    border: 1px solid var(--glass-bd);
+    border-radius: 24px 24px 0 0;
+    max-height: 80dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+.pl-dialog-input {
+    font-size: 16px; /* prevents iOS zoom */
+}
+
+.pl-add-modal-inp {
+    font-size: 16px; /* prevents iOS zoom */
+}
+
+/* ── Context menu ── */
+#pl-ctx-menu {
+    position: fixed;
+    z-index: 500;
+    background: rgba(16,16,28,0.98);
+    border: 1px solid var(--glass-bd);
+    border-radius: 18px;
+    min-width: 220px;
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    padding: 6px;
+    display: none;
+}
+
+#pl-ctx-menu.on { display: block; }
+
+/* ── Toast ── */
+#toast {
+    bottom: calc(var(--mini-h) + var(--nav-h) + var(--safe-bot) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* ── Playlist UI adjustments ── */
+.pl-new-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    background: rgba(250,45,90,0.14);
+    border: 1px solid rgba(250,45,90,0.28);
+    border-radius: 50px;
+    color: var(--acc);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pl-add-track-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    background: rgba(250,45,90,0.14);
+    border: 1px solid rgba(250,45,90,0.28);
+    border-radius: 50px;
+    color: var(--acc);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pl-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--t2);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── lcard touch ── */
+.lcard {
+    padding: 12px 8px;
+    border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.lcard-art {
+    width: 46px;
+    height: 46px;
+}
+
+* { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
+
+/* ════════════════════════════════════════════════════════
+   ANDROID PATCH: 한글 폰트 + Tap highlight + Apple Music 가사
+════════════════════════════════════════════════════════ */
+
+/* ── 전역 폰트: Noto Sans KR 적용 ── */
+*, *::before, *::after {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont,
+                 'Segoe UI', sans-serif !important;
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+    -webkit-touch-callout: none;
+}
+
+/* ── Apple Music 스타일 가사 UI (Android NP 전용) ── */
+
+/* 가사 패널: 세로 스크롤 전체화면형 */
+/* 변경 */
+.np-lyrics-panel {
+    width: 100% !important;
+    max-height: none !important;
+    height: min(215px, 36vh) !important;
+    flex: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+    margin-top: 14px !important;
+}
+
+.np-lyrics-scroll {
+    width: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 48px 24px !important;
+    scrollbar-width: none !important;
+    scroll-behavior: smooth !important;
+    /* Apple Music: 위아래 fade */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 18%,
+        black 75%,
+        transparent 100%
+    ) !important;
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 18%,
+        black 75%,
+        transparent 100%
+    ) !important;
+}
+
+.np-lyrics-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding-bottom: 80px !important;
+}
+
+/* ── 가사 한 줄 — Apple Music 스타일 ── */
+.np-lyric-line {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    line-height: 1.5 !important;
+    color: rgba(255, 255, 255, 0.22) !important;
+    padding: 6px 0 !important;
+    cursor: pointer !important;
+    letter-spacing: -0.3px !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    transition:
+        color 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        font-size 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        filter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    will-change: color, font-size, filter !important;
+    -webkit-font-smoothing: antialiased !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* 현재 활성 줄 — Apple Music: 크고 밝게 */
+.np-lyric-line.active {
+    font-size: 26px !important;
+    font-weight: 800 !important;
+    color: rgba(255, 255, 255, 0.97) !important;
+    letter-spacing: -0.5px !important;
+    filter:
+        drop-shadow(0 0 24px rgba(255, 255, 255, 0.20))
+        drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6)) !important;
+}
+
+/* 바로 이전 줄 */
+.np-lyric-line.prev {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: rgba(255, 255, 255, 0.48) !important;
+    filter: none !important;
+}
+
+/* 근처 줄 */
+.np-lyric-line.near {
+    color: rgba(255, 255, 255, 0.24) !important;
+    filter: none !important;
+}
+
+/* 터치 피드백 */
+.np-lyric-line:active {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 가사 없음 */
+/* 변경 */
+.np-no-lyrics {
+    position: absolute !important;
+    bottom: 220px !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    display: block !important;
+    text-align: center !important;
+    font-size: 12px !important;
+    color: rgba(255, 255, 255, 0.28) !important;
+    padding: 0 !important;
+    letter-spacing: 0.2px !important;
+    pointer-events: none !important;
+}
+
+/* 가사 로딩 */
+.np-lyrics-loading {
+    min-height: 120px !important;
+    font-size: 12px !important;
+    color: rgba(255, 255, 255, 0.28) !important;
+}
+
+/* 가사 있을 때 아트 크기 줄임 */
+.np-art-area.has-lyrics .np-art-shell {
+    width: min(200px, 55vw, 28vh) !important;
+}
+
+
+/* 탭 하이라이트 완전 제거 */
+button, a, div, span, input {
+    -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+}
+
+/* ── 가사 폰트/애니메이션 재조정 ── */
+
+/* 모든 가사 줄: 크기 통일 (커지는 효과 제거) */
+/* 변경 */
+.np-lyric-line {
+    font-size: 15px !important;
+    font-weight: 700 !important;   /* 600 → 700 */
+    line-height: 1.6 !important;
+    color: rgba(255, 255, 255, 0.22) !important;
+    padding: 4px 0 !important;
+    letter-spacing: -0.2px !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    transition:
+        color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        filter 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    will-change: color, filter !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+.np-lyric-line.active {
+    font-size: 15px !important;
+    font-weight: 800 !important;   /* 700 → 800 */
+    color: rgba(255, 255, 255, 0.97) !important;
+    letter-spacing: -0.3px !important;
+    filter: drop-shadow(0 0 14px rgba(255,255,255,0.16)) !important;
+}
+
+.np-lyric-line.prev {
+    font-size: 15px !important;
+    font-weight: 700 !important;   /* 600 → 700 */
+    color: rgba(255, 255, 255, 0.50) !important;
+    filter: none !important;
+}
+
+.np-lyric-line.near {
+    font-size: 15px !important;
+    font-weight: 700 !important;   /* 추가 */
+    color: rgba(255, 255, 255, 0.24) !important;
+    filter: none !important;
+}
+
+/* ── NP 세밀 조정 ── */
+
+/* 변경 */
+/* 1. 앨범 카드 크기 + NP 패널 항상 하단 고정 */
+.np-art-area {
+    padding: 80px 32px 0 !important;
+    padding-bottom: 205px !important;
+    justify-content: flex-start !important;
+}
+
+.np-art-shell {
+    width: min(300px, 88vw, 48vh) !important;
+    margin-top: 16px !important;
+}
+
+.np-art-area.has-lyrics .np-art-shell {
+    width: min(220px, 62vw, 30vh) !important;
+    margin-top: 12px !important;
+}
+
+/* ── NP 패널: 가사 유무에 무관하게 항상 화면 하단 고정 ── */
+#np:not(.fullscreen) .np-panel {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 20 !important;
+    padding: 16px 20px calc(var(--safe-bot) + 20px) !important;
+    gap: 10px !important;
+    background: linear-gradient(to top,
+        rgba(0,0,0,0.76) 60%,
+        transparent 100%) !important;
+}
+
+/* 2. 가사 폰트 크기 + 굵기 (최종 override) */
+.np-lyric-line,
+.np-lyric-line.prev,
+.np-lyric-line.near {
+    font-size: 17px !important;
+    font-weight: 700 !important;
+}
+
+.np-lyric-line.active {
+    font-size: 17px !important;
+    font-weight: 800 !important;   /* 핵심: 700 → 800 */
+    color: rgba(255, 255, 255, 0.97) !important;
+    filter: drop-shadow(0 0 14px rgba(255,255,255,0.14)) !important;
+}
+
+/* 3. 가사 폰트: Apple Music 스타일 SF Pro 계열 */
+.np-lyric-line {
+    font-family:
+        -apple-system,
+        'SF Pro Display',
+        'SF Pro Text',
+        'Helvetica Neue',
+        'Noto Sans KR',
+        sans-serif !important;
+    letter-spacing: -0.4px !important;
+    word-break: keep-all !important;
+}
+
+/* ── NP 즐겨찾기 버튼: 활성화 시 하트 채움 (Android WebView 강제 적용) ── */
+#np-fav.on path,
+#np-fav.on svg path {
+    fill: var(--acc) !important;
+    stroke: var(--acc) !important;
+}
+
+#np-fav svg path {
+    transition: fill 0.2s ease, stroke 0.2s ease;
+}
+
+#np-save.on svg path {
+    stroke: var(--acc) !important;
+}
+
+.np-act#np-save {
+    flex-shrink: 0;
+}
+
+/* NP LS 왼쪽 컬럼 너비 CSS override 차단 — JS 인라인이 지배 */
+    #np-ls-left, #np-ls-right {
+        flex-shrink: 0 !important;
+    }
+
+/* ════════════════════════════════════════════════════════
+   LIQUID GLASS REDESIGN (added layer)
+   — 검색 캡슐 + 하단 내비 캡슐을 iOS 스타일 Liquid Glass로 교체.
+   — 기존 규칙 위에 소스 순서로 override, 기존 마크업/JS는 그대로 사용.
+════════════════════════════════════════════════════════ */
+
+:root {
+    --nav-h: 74px; /* 캡슐 높이(60px) + 바닥 여백(14px) 반영 */
+}
+
+/* ── 검색 캡슐 → Liquid Glass ── */
+.mob-srch-wrap {
+    position: relative;
+    z-index: 60;
+    margin-bottom: 20px;
+    border-radius: 30px;
+    /* overflow는 절대 hidden 금지: 검색 추천 드롭다운(.sug-drop)이 캡슐 아래로
+       펼쳐져야 하므로 클리핑하면 안 됨. backdrop-filter는 border-radius를
+       그대로 따라가므로 overflow:hidden 없이도 캡슐 형태로 렌더링된다. */
+    isolation: isolate;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,.16);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        inset 0 -1px 0 rgba(255,255,255,.05),
+        0 12px 34px rgba(0,0,0,.30);
+    backdrop-filter: url(#liquidGlassSearchFilter);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+}
+
+    .mob-srch-wrap:before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        z-index: 0;
+        background: linear-gradient(90deg, rgba(255,255,255,.03), transparent 25%, transparent 75%, rgba(255,255,255,.03));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+
+.mob-srch-wrap .srch-inp {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 100%;
+    padding: 15px 20px 15px 46px;
+    font-size: 15px;
+    border-radius: 30px;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+    .mob-srch-wrap .srch-inp:focus {
+        background: transparent !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+.mob-srch-wrap .srch-ico {
+    position: absolute;
+    z-index: 1;
+    left: 18px;
+    width: 16px;
+    height: 16px;
+    opacity: .82;
+}
+
+/* 검색 박스 옆 "검색" 버튼 제거 (엔터 검색은 그대로 동작) */
+.mob-srch-wrap .srch-btn {
+    display: none !important;
+}
+
+.mob-srch-wrap .sug-drop {
+    border-radius: 22px;
+    max-height: 240px;
+    overflow-y: auto;
+    top: calc(100% + 10px);
+    background: rgba(14,14,20,.86);
+    backdrop-filter: blur(30px) saturate(1.5);
+    -webkit-backdrop-filter: blur(30px) saturate(1.5);
+}
+
+/* 검색 화면: 스크롤해도 항상 상단에 투명하게 떠있는 Liquid Glass 캡슐 */
+#v-search .mob-srch-wrap {
+    position: sticky;
+    top: 10px;
+    z-index: 60;
+}
+
+/* ── 하단 내비 → 캡슐형 Liquid Glass + 모핑 필 인디케이터 ── */
+#mob-nav {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(var(--safe-bot) + 14px);
+    height: 60px;
+    padding-bottom: 0;
+    border-radius: 30px;
+    z-index: 200;
+    display: flex;
+    align-items: stretch;
+    isolation: isolate;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+    border: 1px solid rgba(255,255,255,.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.16),
+        inset 0 -1px 0 rgba(255,255,255,.04),
+        0 15px 45px rgba(0,0,0,.35);
+    backdrop-filter: url(#liquidGlassNavFilter);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+
+    #mob-nav:before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        z-index: 0;
+        background: linear-gradient(90deg, rgba(255,255,255,.03), transparent 25%, transparent 75%, rgba(255,255,255,.03));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+
+.mn-btn {
+    position: relative;
+    z-index: 2;
+}
+
+.mn-pill {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: calc(100% - 6px);
+    width: 60px;
+    border-radius: 999px;
+    z-index: 1;
+    pointer-events: none;
+    isolation: isolate;
+    background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04));
+    border: 1px solid rgba(255,255,255,.22);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -1px 0 rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.32);
+    /* 강한 Edge 굴절: 전용 SVG 필터로 캡슐 가장자리를 렌즈처럼 왜곡시킨다 (범위/강도 확대) */
+    backdrop-filter: url(#liquidGlassPillFilter);
+    -webkit-backdrop-filter: blur(5px) saturate(1.5);
+    transition: left .46s cubic-bezier(.22,1.61,.36,1), width .46s cubic-bezier(.22,1.61,.36,1);
+}
+
+    .mn-pill:before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background: linear-gradient(90deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.06));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+    }
+
+@media (orientation: landscape) {
+    .mn-pill { display: none; }
+}
+
+/* ── 재생 중 하단 미니 플레이어 바 → 캡슐 + Liquid Glass ── */
+#bar {
+    left: 16px;
+    right: 16px;
+    border-radius: 32px;
+    isolation: isolate;
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)) !important;
+    backdrop-filter: url(#liquidGlassBarFilter) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
+    border: 1px solid rgba(255,255,255,.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.16),
+        inset 0 -1px 0 rgba(255,255,255,.04),
+        0 15px 45px rgba(0,0,0,.35);
+}
+
+    #bar:before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        z-index: 0;
+        background: linear-gradient(90deg, rgba(255,255,255,.03), transparent 25%, transparent 75%, rgba(255,255,255,.03));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    }
+
+    #bar .bar-inner {
+        position: relative;
+        z-index: 1;
+    }
+
+/* ════════════════════════════════════════════════════════
+   PLAYLIST 팝업 UI → Liquid Glass 리디자인 (SYNC → Apple Music 스타일)
+   — 기존 검색 캡슐/하단 내비/미니바와 동일하게, backdrop-filter(SVG 굴절)를
+     박스 요소 자기 자신에 직접 건다(별도 레이어로 분리하지 않음 — 검증된
+     기존 4개 UI와 완전히 같은 구조를 그대로 재사용).
+   — Continuous Corner(clip-path)도 같은 요소에 함께 걸되, GPU 합성 레이어를
+     명시적으로 미리 승격시켜(will-change/transform) 두 효과가 같은 프레임에
+     안정적으로 합성되도록 방어적으로 처리한다.
+   — 굴절 강도는 요청에 따라 최대치로: blur/saturate 폴백과 실제 SVG
+     feDisplacementMap의 scale(=liquid-glass.js의 boost)을 기존 검색/내비/바
+     대비 대폭 상향했다.
+════════════════════════════════════════════════════════ */
+
+/* ── 컨텍스트 메뉴("플레이리스트에 추가") → Liquid Glass 박스 ── */
+#pl-ctx-menu {
+    position: fixed;
+    isolation: isolate;
+    /* clip-path + backdrop-filter를 같은 프레임에 안정적으로 합성하기 위해
+       미리 별도의 GPU 레이어로 승격시켜 둔다 */
+    will-change: clip-path, transform;
+    transform: translateZ(0);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.035));
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 20px; /* JS clip-path 적용 전/미지원 브라우저 폴백 */
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.26),
+        inset 0 -1px 0 rgba(255,255,255,.07),
+        0 14px 34px rgba(0,0,0,.40);
+    backdrop-filter: url(#liquidGlassCtxFilter);
+    -webkit-backdrop-filter: blur(34px) saturate(2.1);
+}
+
+    #pl-ctx-menu::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        z-index: -1;
+        background: linear-gradient(135deg, rgba(255,255,255,.07), transparent 40%, transparent 65%, rgba(255,255,255,.06));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+
+.pl-ctx-item {
+    background: transparent;
+    transition: background .12s var(--ease), color .12s var(--ease);
+}
+
+    .pl-ctx-item:hover {
+        background: rgba(255,255,255,.08);
+    }
+
+/* "새 플레이리스트 만들기" 항목: 솔리드 핑크 배경 제거 → 텍스트만 accent 틴트 */
+.pl-ctx-new {
+    color: var(--acc);
+}
+
+    .pl-ctx-new:hover {
+        background: rgba(250,45,90,.12);
+        color: #ff6b8f;
+    }
+
+/* ── 이름변경/삭제 다이얼로그 & 곡 추가 모달 공통 → Liquid Glass 박스 ── */
+#pl-dialog,
+#pl-confirm {
+    position: relative;
+    isolation: isolate;
+    will-change: clip-path, transform;
+    transform: translateZ(0);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 28px; /* JS clip-path 적용 전/미지원 브라우저 폴백 */
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.26),
+        inset 0 -1px 0 rgba(255,255,255,.07),
+        0 20px 50px rgba(0,0,0,.42);
+    backdrop-filter: url(#liquidGlassDialogFilter);
+    -webkit-backdrop-filter: blur(40px) saturate(2.1);
+}
+
+    #pl-confirm {
+        backdrop-filter: url(#liquidGlassConfirmFilter);
+    }
+
+    #pl-dialog::before,
+    #pl-confirm::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        z-index: -1;
+        background: linear-gradient(135deg, rgba(255,255,255,.07), transparent 35%, transparent 65%, rgba(255,255,255,.06));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+
+#pl-add-modal {
+    position: relative;
+    isolation: isolate;
+    will-change: clip-path, transform;
+    transform: translateZ(0);
+    background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.028));
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 30px; /* JS clip-path 적용 전/미지원 브라우저 폴백 */
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.24),
+        inset 0 -1px 0 rgba(255,255,255,.06),
+        0 22px 54px rgba(0,0,0,.44);
+    backdrop-filter: url(#liquidGlassAddModalFilter);
+    -webkit-backdrop-filter: blur(42px) saturate(2.1);
+}
+
+    #pl-add-modal::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        z-index: -1;
+        background: linear-gradient(135deg, rgba(255,255,255,.07), transparent 35%, transparent 65%, rgba(255,255,255,.06));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+
+.pl-add-modal-header {
+    border-bottom: 1px solid rgba(255,255,255,.10);
+    position: relative;
+}
+
+#pl-add-modal-results {
+    position: relative;
+}
+
+/* ── 다이얼로그 오버레이 배경: 얇은 딤(dim)만 — 블러는 박스 자체의
+   backdrop-filter 하나로만 처리해야 유리질 투명감이 살아난다.
+   (스크림에도 블러를 겹치면 이중 블러로 배경이 뭉개져 칙칙해 보임) ── */
+#pl-dialog-overlay,
+#pl-confirm-overlay,
+#pl-add-modal-overlay {
+    background: rgba(4,4,10,.22);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    /* Apple 스타일 알림/시트: 화면에 딱 붙는 바텀시트가 아니라
+       가운데 떠 있는 독립된 "박스" 형태로 통일 (요청사항: 박스 UI) */
+    align-items: center !important;
+    padding: 20px;
+}
+
+/* 곡 추가 모달 검색 결과 행 — 한번에 우르르 나타나지 않고, 위에서부터
+   부드럽게 순서대로 이어지도록 (JS에서 각 행에 animation-delay를 부여) */
+@keyframes plModalRowIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.pl-modal-row-in {
+    animation: plModalRowIn .46s cubic-bezier(.22,.9,.28,1) both;
+}
+
+#pl-add-modal {
+    width: 100%;
+    max-width: 480px;
+    max-height: min(76dvh, 640px);
+}
+
+/* ════════════════════════════════════════════════════════
+   버튼: 솔리드 핑크 발광(glow) 제거
+════════════════════════════════════════════════════════ */
+
+/* "+ 새 플레이리스트" / "+ 곡 추가" 버튼: Liquid Glass 미적용(요청사항) —
+   블러/굴절 없는 단순한 플랫 틴트 버튼으로 유지 */
+.pl-new-btn,
+.pl-add-track-btn {
+    background: rgba(255,68,113,.16);
+    border: 1px solid rgba(255,68,113,.32);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    color: #ff6b8f;
+    transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+
+    .pl-new-btn:hover,
+    .pl-add-track-btn:hover {
+        background: rgba(255,68,113,.24);
+        border-color: rgba(255,68,113,.46);
+        transform: none;
+        box-shadow: none;
+    }
+
+/* 다이얼로그 하단 버튼(취소/확인/삭제) 공통 베이스 — 여긴 작은 박스 UI 내부라
+   Liquid Glass 표면(블러)을 유지한다 */
+.pl-dialog-btn {
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+    border: 1px solid rgba(255,255,255,.16);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        inset 0 -1px 0 rgba(255,255,255,.04);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    transition: transform .15s var(--ease), background .15s var(--ease), border-color .15s var(--ease);
+}
+
+/* 취소 버튼: 중립 글래스 */
+.pl-dialog-cancel {
+    color: var(--t2);
+}
+
+    .pl-dialog-cancel:hover {
+        background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+        color: var(--t1);
+    }
+
+/* 확인 버튼: 더 이상 핑크가 아닌 중립 글래스 — 취소보다 살짝 더 밝은 표면과
+   굵은 글자로 "기본 동작(primary action)"만 표시 (요청사항: 분홍색 제거) */
+.pl-dialog-ok {
+    background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.08));
+    color: var(--t1);
+    font-weight: 700;
+    border: 1px solid rgba(255,255,255,.28);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.30),
+        inset 0 -1px 0 rgba(255,255,255,.06);
+}
+
+    .pl-dialog-ok:hover {
+        transform: scale(1.03);
+        background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.12));
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.34),
+            inset 0 -1px 0 rgba(255,255,255,.07);
+    }
+
+/* 삭제(위험) 버튼: 솔리드 레드 그라디언트 → 레드 틴트 글래스 */
+.pl-dialog-danger {
+    background: linear-gradient(180deg, rgba(255,95,87,.20), rgba(255,95,87,.06));
+    border: 1px solid rgba(255,95,87,.42);
+}
+
+    .pl-dialog-danger:hover {
+        background: linear-gradient(180deg, rgba(255,95,87,.30), rgba(255,95,87,.10));
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.26),
+            inset 0 -1px 0 rgba(255,255,255,.06);
+    }
+
+/* 곡 추가 모달 내부 검색창도 동일 톤의 글래스로 통일 (핑크 포커스 글로우 제거) */
+.pl-add-modal-inp:focus,
+.pl-dialog-input:focus {
+    border-color: rgba(255,255,255,.28);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* ════════════════════════════════════════════════════════
+   ▌APPLE MUSIC 스타일 홈 화면 (Listen Now) 리디자인 ▐
+   — 홈 화면(#v-home) 전용. 다른 탭의 .card/.hrow/.sh 등
+   공통 컴포넌트는 그대로 재사용하되, 이 블록에서 홈 화면
+   범위로만 룩앤필을 덮어쓴다. 재생/통신 로직은 app.js의
+   기존 함수(mkCard, loadRec, callCs 등)를 그대로 사용.
+════════════════════════════════════════════════════════ */
+
+/* ── 상단 헤더: 브랜드 칩 + 큰 타이틀(Apple 스타일 Large Title) ── */
+#v-home .am-header {
+    padding: 14px 0 14px;
+}
+
+#v-home .am-brandrow {
+    margin-bottom: 18px;
+    opacity: .82;
+}
+
+#v-home .am-title {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    line-height: 1.15;
+    margin-bottom: 4px;
+    background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.88) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#v-home .am-subtitle {
+    font-size: 13.5px;
+    color: var(--t3);
+}
+
+/* ── 검색 필드: 더 미니멀한 필 형태 ── */
+#v-home .am-srch .srch-inp {
+    background: var(--glass);
+    border-color: var(--glass-bd);
+    border-radius: 18px;
+    padding: 12px 74px 12px 42px;
+    font-size: 14px;
+}
+
+#v-home .am-srch .srch-btn {
+    padding: 7px 15px;
+    font-size: 12px;
+}
+
+/* ── 섹션 헤더: Apple Music 굵은 타이틀 리듬 ── */
+#v-home .am-sh {
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+#v-home .am-sh h3 {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.35px;
+}
+
+#v-home .am-sh .sh-more {
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+/* ── TOP PICKS 히어로 캐러셀 ── */
+.am-hero-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 26px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.am-hero-card {
+    position: relative;
+    flex: 0 0 58vw;
+    max-width: 224px;
+    aspect-ratio: 1 / 1.18;
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--glass-md);
+    cursor: pointer;
+    scroll-snap-align: start;
+    animation: cIn .5s var(--ease) both;
+    transition: transform .18s var(--ease);
+}
+
+.am-hero-card:active {
+    transform: scale(0.96);
+}
+
+.am-hero-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.am-hero-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 38%, rgba(6,6,16,.55) 68%, rgba(6,6,16,.94) 100%);
+}
+
+.am-hero-meta {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 16px 16px 18px;
+}
+
+.am-hero-badge {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--acc);
+    margin-bottom: 6px;
+}
+
+.am-hero-title {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    color: #fff;
+    line-height: 1.22;
+    margin-bottom: 3px;
+}
+
+.am-hero-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,.62);
+}
+
+/* ── 정사각 타일 로우(최근 재생 / 나를 위한 믹스 / 신곡) ──
+   기존 .card/.hrow 컴포넌트를 재사용하되, 카드 chrome(테두리/배경)을
+   걷어내고 아트워크+텍스트만 남기는 애플뮤직식 타일로 리스킨 */
+.am-square-row {
+    gap: 10px;
+    padding: 12px 2px 16px;
+    margin-bottom: 22px;
+}
+
+.am-square-row .card {
+    flex: 0 0 108px;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+}
+
+    .am-square-row .card.playing {
+        box-shadow: none;
+        border: none;
+    }
+
+.am-square-row .c-thumb {
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    background: var(--glass-md);
+}
+
+.am-square-row .c-info {
+    padding: 8px 2px 0;
+    background: none;
+}
+
+.am-square-row .c-title {
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.am-square-row .c-ch {
+    font-size: 10.5px;
+}
+
+.am-square-row .c-shine { display: none; }
+
+/* ── 차트 로우: 정사각 타일 + 대형 순위 숫자 ──
+   overflow-x:auto인 가로 스크롤 컨테이너는 CSS 스펙상
+   overflow-y도 auto로 계산되어, 재생중 하이라이트(box-shadow
+   글로우)의 위/아래가 잘리는 문제가 있었다. 세로 여백을
+   충분히 확보하고, 글로우 자체도 더 안전한 크기로 조정했다. */
+.am-chart-row {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 14px 4px 20px;
+    margin-bottom: 22px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.am-chart-row .card.am-chart-item {
+    flex: 0 0 100px;
+    background: transparent;
+    border: none;
+    margin-left: 20px;
+}
+
+    /* 재생중 하이라이트를 이 행의 여백 안에서 완전히 보이도록 축소 */
+    .am-chart-row .card.playing {
+        box-shadow: 0 0 0 1.5px var(--acc), 0 4px 14px var(--acc-glow);
+    }
+
+.am-chart-row .c-thumb {
+    aspect-ratio: 1 / 1;
+    border-radius: 11px;
+    background: var(--glass-md);
+    overflow: visible;
+}
+
+.am-chart-row .c-info {
+    padding: 8px 2px 0;
+    background: none;
+}
+
+.am-chart-row .c-title {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.am-chart-row .c-ch {
+    font-size: 10.5px;
+}
+
+.am-chart-row .c-shine { display: none; }
+
+.am-rank {
+    position: absolute;
+    left: -17px;
+    bottom: -6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1;
+    color: rgba(255,255,255,.92);
+    -webkit-text-stroke: 1px rgba(6,6,16,.6);
+    text-shadow: 0 4px 14px rgba(0,0,0,.55);
+    pointer-events: none;
+    z-index: 2;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   APPLE MUSIC 스타일 가사 — 최종 오버라이드
+   (폰트 + Focus-driven Inertial Spring Motion)
+   이 블록은 파일 최하단에 위치 — 동일 우선순위 규칙 중 항상 마지막에
+   적용되어, 위쪽의 breakpoint별 중복 규칙들을 안전하게 통일한다.
+
+   ⚠ 스프링 반동은 "글자 크기(scale)"가 아니라 "각 줄의 Y좌표"에만
+   적용된다. 실제 위치 이동은 app.js의 rAF 기반 스프링 물리 엔진이
+   .np-lyrics-inner / #np-fs-lyrics-inner / np-ls-scroll 내부 래퍼의
+   transform: translateY()를 매 프레임 직접 계산해 구동하므로,
+   여기서는 CSS transition-duration으로 애니메이션을 만들지 않는다
+   (고정 duration의 CSS transition은 재생 중 목표가 계속 바뀌는 상황에서
+   매번 새로 시작되어 뚝뚝 끊기므로 사용하지 않음 — 색상/블러처럼
+   "값이 바뀌는 순간에만" 전환되면 되는 속성에 한해서만 짧은 transition을 둔다).
+════════════════════════════════════════════════════════════════ */
+
+/* 폰트 통일 — 굵고 직관적인 Apple Music 스타일, CJK 전 언어 대응 */
+.np-lyric-line,
+.np-fs-lyric-line,
+.np-ls-lyric-line,
+.np-no-lyrics,
+.np-lyrics-loading {
+    font-family: var(--lyric-font) !important;
+}
+
+/* 이동을 담당하는 wrapper는 transform 이외의 것을 건드리지 않고,
+   transform 자체는 JS 스프링 루프가 매 프레임 갱신하므로
+   CSS에는 transition을 걸지 않는다 (걸면 JS가 프레임마다 값을
+   바꿀 때 매번 트랜지션이 재시작되어 오히려 끊겨 보인다). */
+.np-lyrics-inner,
+#np-fs-lyrics-inner {
+    will-change: transform;
+    position: relative !important; /* offsetTop 계산 기준점을 자기 자신으로 고정 (안하면 위치가 다른 조상 기준으로 어긋남) */
+}
+
+/* 세로 가사 패널의 이동은 이제 네이티브 스크롤이 아니라 JS 스프링이
+   .np-lyrics-inner를 translateY로 직접 구동한다 (부드러운 관성).
+   네이티브 overflow:auto 스크롤과 병행되면 서로 위치가 어긋나므로 hidden으로 고정. */
+.np-lyrics-scroll {
+    overflow-y: hidden !important;
+    scroll-behavior: auto !important;
+}
+
+/* 색상/굵기/블러 등 "상태"는 부드럽게 페이드만 — 크기(transform)는
+   절대 여기서 건드리지 않는다 (그건 줄의 Y이동으로만 표현됨) */
+.np-lyric-line {
+    /* 가사 하이라이팅(색상)은 LRC 타임라인에 맞춰 "즉시" 반영되어야 하므로
+       이동 애니메이션과 별개로 매우 짧게만 페이드한다.
+       (위치 이동은 여기서 건드리지 않음 — JS 스프링이 transform을 직접 구동) */
+    transition:
+        color 0.08s linear,
+        opacity 0.08s linear,
+        filter 0.08s linear !important;
+    will-change: color, opacity, filter;
+}
+
+.np-ls-lyric-line {
+    display: block;
+    /* 가사 하이라이팅(색상)도 즉시 반영 — 위치는 별도의 JS 스프링이 담당 */
+    transition:
+        color 0.08s linear,
+        filter 0.08s linear !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .np-lyrics-inner,
+    #np-fs-lyrics-inner {
+        transition: none !important;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   APPLE MUSIC 스타일 "Lyrics View" 전용 화면
+   - 기존 미니 가사 패널(.np-lyrics-panel / .np-lyric-line)의 폰트와
+     애니메이션(색상 페이드 + JS 스프링 위치 이동)을 그대로 재사용하고,
+     이 블록에서는 크기/여백/보이는 줄 수만 조정한다.
+   - 이동(transform)은 app.js의 _highlightLvLine()이 기존과 동일한
+     스프링 물리 루프로 .np-lv-inner 를 구동하므로 여기서는
+     transition-duration을 걸지 않는다 (색상/블러 같은 "상태" 전환만).
+════════════════════════════════════════════════════════════════ */
+
+/* ── 가사 보기 버튼 (곡정보 줄, 즐겨찾기·로컬저장 버튼 옆) ── */
+.np-lv-btn {
+    display: none;
+}
+.np-lv-btn.show {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Lyrics View 컨테이너: 기본은 숨김, .lyrics-view 상태일 때만 표시 ── */
+.np-lv {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#np.lyrics-view .np-lv {
+    display: flex;
+    opacity: 1;
+    pointer-events: auto;
+    animation: npLvIn .42s var(--ease) both;
+}
+
+/* Lyrics View가 열려 있을 땐 앨범 아트/컨트롤 패널/상단 버튼들을 숨겨
+   가사만 보기 위한 화면으로 구성한다 (기존 전체화면 토글과 충돌 없음). */
+#np.lyrics-view .np-art-area,
+#np.lyrics-view .np-panel,
+#np.lyrics-view .np-x,
+#np.lyrics-view .np-fs-btn {
+    display: none !important;
+}
+
+@keyframes npLvIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* 상단 바: 닫기 버튼만 (좌측) */
+.np-lv-top {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: calc(var(--safe-top) + 14px) 20px 4px;
+    position: relative;
+    z-index: 5;
+}
+
+.np-lv-close {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, transform .15s;
+    -webkit-tap-highlight-color: transparent;
+}
+.np-lv-close:active { transform: scale(0.9); background: rgba(255,255,255,0.22); }
+
+/* 트랙 정보 줄: 좌측 작은 앨범 카드 + 곡명/가수 (Apple Music Lyrics View 구조) */
+.np-lv-track {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px 14px;
+    position: relative;
+    z-index: 5;
+}
+
+.np-lv-art-shell {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+}
+#np-lv-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.np-lv-meta {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+.np-lv-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.94);
+    letter-spacing: -.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.np-lv-ch {
+    font-size: 12px;
+    color: rgba(255,255,255,0.52);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 가사 영역: 화면 대부분을 차지 */
+.np-lv-lyrics {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+.np-lv-scroll {
+    height: 100%;
+    overflow-y: hidden;   /* 네이티브 스크롤 대신 JS 스프링이 구동 (기존 방식과 동일) */
+    overflow-x: hidden;
+    padding: 26px 30px;
+    box-sizing: border-box;
+    position: relative;
+    scroll-behavior: auto;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
+}
+
+.np-lv-inner {
+    position: relative;
+    will-change: transform;
+    display: flex;
+    flex-direction: column;
+}
+
+.np-lv-line-wrap {
+    padding: 11px 0;
+    cursor: pointer;
+}
+
+/* 기존 .np-lyric-line 폰트/색상/블러 전환을 그대로 물려받고,
+   Lyrics View 전용 크기/줄간격만 재정의 (더 크고, 줄 사이 여백도 넉넉하게) */
+.np-lyric-line.np-lv-line {
+    font-size: 25px !important;
+    line-height: 1.4 !important;
+    padding: 0 !important;
+}
+
+/* 번역 가사: 원문 줄 바로 아래, 작은 글씨로 표시 (외국어 가사일 때만 존재) */
+.np-lv-line-tr {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: rgba(255,255,255,0.16);
+    margin-top: 5px;
+    letter-spacing: -0.1px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    font-family: var(--lyric-font);
+    transition: color 0.4s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.4s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.np-lv-line-wrap.active .np-lv-line-tr {
+    color: rgba(255,255,255,0.60);
+}
+.np-lv-line-wrap.prev .np-lv-line-tr {
+    color: rgba(255,255,255,0.32);
+}
+.np-lv-line-wrap.near .np-lv-line-tr {
+    color: rgba(255,255,255,0.14);
+}
+
+.np-lv-empty {
+    text-align: center;
+    color: rgba(255,255,255,0.32);
+    font-size: 13px;
+    padding: 60px 24px 0;
+}
+
+/* 하단: 최소한의 재생 컨트롤만 (Apple Music처럼 불필요한 요소는 숨김) */
+.np-lv-bottom {
+    flex-shrink: 0;
+    padding: 10px 30px calc(var(--safe-bot) + 22px);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.np-lv-ctrl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 44px;
+}
+.np-lv-ctrl .nc-play { width: 52px; height: 52px; }
+.np-lv-ctrl .nc-play svg { width: 40px; height: 40px; }
+.np-lv-ctrl .nc-prev svg, .np-lv-ctrl .nc-next svg { width: 22px; height: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .np-lv-inner { transition: none !important; }
+}
